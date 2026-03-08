@@ -36,10 +36,10 @@ export class UserService {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Only admins can create users with roles other than CUSTOMER
+    // Only admins can create users with roles other than USER
     if (
       dto.role &&
-      dto.role !== Role.CUSTOMER &&
+      dto.role !== Role.USER &&
       requestingUserRole !== Role.ADMIN
     ) {
       throw new ForbiddenException(
@@ -54,7 +54,7 @@ export class UserService {
       data: {
         email: dto.email,
         password: hashedPassword,
-        role: dto.role || Role.CUSTOMER,
+        role: dto.role || Role.USER,
       },
     });
 
@@ -125,16 +125,6 @@ export class UserService {
 
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        orders: {
-          select: {
-            id: true,
-            status: true,
-            total: true,
-            createdAt: true,
-          },
-        },
-      },
     });
 
     if (!user) {

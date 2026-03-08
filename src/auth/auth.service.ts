@@ -92,12 +92,12 @@ export class AuthService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create the user with CUSTOMER role
+    // Create the user with USER role
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        role: 'CUSTOMER',
+        role: 'USER',
       },
     });
 

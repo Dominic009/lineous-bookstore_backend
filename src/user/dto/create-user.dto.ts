@@ -18,5 +18,5 @@ export class CreateUserDto {
 
   @IsEnum(Role)
   @IsOptional()
-  role?: Role = Role.CUSTOMER;
+  role?: Role = Role.USER;
 }
