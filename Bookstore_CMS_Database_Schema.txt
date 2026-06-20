@@ -1,0 +1,215 @@
+﻿Bookstore CMS Database Schema
+This document describes the proposed database tables and columns for a NestJS + Prisma + PostgreSQL bookstore CMS.
+
+User
+Stores admin and customer accounts. Password is nullable for OAuth.
+* id (UUID, PK)
+* firstName
+* lastName
+* email (unique)
+* phone
+* password (nullable)
+* provider (EMAIL/GOOGLE/FACEBOOK/APPLE)
+* providerId
+* avatar
+* role
+* emailVerified
+* status
+* createdAt
+* updatedAt
+* deletedAt
+Book
+Main product table.
+* id
+* title
+* slug
+* shortDescription
+* description
+* isbn
+* price
+* discountPrice
+* publicationDate
+* edition
+* language
+* stock
+* status
+* thumbnail
+* createdAt
+* updatedAt
+* deletedAt
+Publication
+Publishing company.
+* id
+* name
+* slug
+* description
+* logo
+* status
+* createdAt
+* updatedAt
+* deletedAt
+Subject
+Academic subject/category.
+* id
+* name
+* slug
+* description
+* createdAt
+* updatedAt
+* deletedAt
+BookPart
+Supports multi-part books.
+* id
+* bookId
+* title
+* partNumber
+* description
+* price
+* createdAt
+* updatedAt
+* deletedAt
+BookAttachment
+Images, PDFs, banners, etc.
+* id
+* bookId
+* url
+* type
+* sortOrder
+* createdAt
+* updatedAt
+* deletedAt
+Review
+Admin-managed testimonials/reviews.
+* id
+* bookId
+* reviewerName
+* designation
+* rating
+* comment
+* displayOrder
+* status
+* createdAt
+* updatedAt
+* deletedAt
+Teacher
+Teacher showcase.
+* id
+* name
+* designation
+* bio
+* photo
+* facebook
+* linkedin
+* website
+* displayOrder
+* featured
+* status
+* createdAt
+* updatedAt
+* deletedAt
+TeacherBook
+Many-to-many bridge.
+* teacherId
+* bookId
+Order
+Order header.
+* id
+* userId
+* orderNumber
+* subtotal
+* discount
+* shipping
+* total
+* status
+* paymentStatus
+* paymentMethod
+* notes
+* createdAt
+* updatedAt
+* deletedAt
+OrderItem
+Stores price/title snapshot.
+* id
+* orderId
+* bookId
+* bookTitle
+* bookPrice
+* quantity
+* subtotal
+Payment
+Payment records.
+* id
+* orderId
+* gateway
+* transactionId
+* amount
+* currency
+* status
+* paidAt
+* createdAt
+* updatedAt
+Address
+Shipping/billing addresses.
+* id
+* userId
+* name
+* phone
+* country
+* division
+* district
+* area
+* addressLine
+* postalCode
+* isDefault
+* createdAt
+* updatedAt
+* deletedAt
+Wishlist
+Saved books.
+* userId
+* bookId
+Cart
+Shopping cart.
+* id
+* userId
+* createdAt
+CartItem
+Cart entries.
+* cartId
+* bookId
+* quantity
+Category
+Optional hierarchical categories.
+* id
+* name
+* slug
+* parentId
+* createdAt
+* updatedAt
+* deletedAt
+Banner
+Homepage CMS.
+* id
+* title
+* subtitle
+* image
+* buttonText
+* buttonUrl
+* displayOrder
+* status
+Setting
+Global settings.
+* id
+* key
+* value
+AuditLog
+Audit history.
+* id
+* userId
+* entity
+* entityId
+* action
+* oldValue
+* newValue
+* ipAddress
+* createdAt

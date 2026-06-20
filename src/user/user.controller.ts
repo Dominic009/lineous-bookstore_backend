@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
   Get,
@@ -6,7 +9,6 @@ import {
   Delete,
   Param,
   Body,
-  ParseIntPipe,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -23,7 +25,7 @@ import { Role } from '@prisma/client';
  */
 interface RequestWithUser extends Request {
   user: {
-    id: number;
+    id: string;
     email: string;
     role: Role;
   };
@@ -61,10 +63,7 @@ export class UserController {
    * Access: Users can view their own profile, admins can view any
    */
   @Get(':id')
-  findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: RequestWithUser,
-  ) {
+  findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.userService.findOne(id, req.user.id, req.user.role);
   }
 
@@ -74,7 +73,7 @@ export class UserController {
    */
   @Patch(':id')
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: UpdateUserDto,
     @Request() req: RequestWithUser,
   ) {
@@ -88,10 +87,7 @@ export class UserController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: RequestWithUser,
-  ) {
+  remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.userService.remove(id, req.user.id, req.user.role);
   }
 }

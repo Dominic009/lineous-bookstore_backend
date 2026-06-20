@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
@@ -7,7 +11,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Role, User } from '@prisma/client';
+import { Role, User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -20,7 +24,7 @@ export class UserService {
    */
   async create(
     dto: CreateUserDto,
-    requestingUserId: number,
+    requestingUserId: string,
     requestingUserRole: Role,
   ): Promise<{
     message: string;
@@ -47,14 +51,24 @@ export class UserService {
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // Hash password if provided (for email/password auth)
+    let hashedPassword: string | undefined;
+    if (dto.password) {
+      hashedPassword = await bcrypt.hash(dto.password, 10);
+    }
 
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone,
         password: hashedPassword,
+        provider: dto.provider || 'EMAIL',
+        providerId: dto.providerId,
+        avatar: dto.avatar,
         role: dto.role || Role.USER,
+        status: dto.status || UserStatus.ACTIVE,
       },
     });
 
@@ -74,7 +88,7 @@ export class UserService {
    * Security: Admins only
    */
   async findAll(
-    requestingUserId: number,
+    requestingUserId: string,
     requestingUserRole: Role,
   ): Promise<{
     message: string;
@@ -86,10 +100,10 @@ export class UserService {
     }
 
     const users = await this.prisma.user.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Remove passwords from response
     // Remove passwords from response
     const usersWithoutPassword = users.map((u) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -110,8 +124,8 @@ export class UserService {
    * Security: Users can view their own profile, admins can view any
    */
   async findOne(
-    id: number,
-    requestingUserId: number,
+    id: string,
+    requestingUserId: string,
     requestingUserRole: Role,
   ): Promise<{
     message: string;
@@ -124,14 +138,13 @@ export class UserService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Remove password from response
     // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = user;
@@ -148,9 +161,9 @@ export class UserService {
    * Security: Users can update their own profile, admins can update any
    */
   async update(
-    id: number,
+    id: string,
     dto: UpdateUserDto,
-    requestingUserId: number,
+    requestingUserId: string,
     requestingUserRole: Role,
   ): Promise<{
     message: string;
@@ -167,8 +180,15 @@ export class UserService {
       throw new ForbiddenException('Only administrators can change user roles');
     }
 
+    // Only admins can change status
+    if (dto.status && requestingUserRole !== Role.ADMIN) {
+      throw new ForbiddenException(
+        'Only administrators can change user status',
+      );
+    }
+
     const existingUser = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
     if (!existingUser) {
@@ -187,10 +207,24 @@ export class UserService {
     }
 
     // If password is being changed, hash it
-    const updateData: { email?: string; password?: string; role?: Role } = {};
+    const updateData: {
+      email?: string;
+      password?: string;
+      role?: Role;
+      status?: UserStatus;
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      avatar?: string;
+    } = {};
     if (dto.email) updateData.email = dto.email;
+    if (dto.firstName) updateData.firstName = dto.firstName;
+    if (dto.lastName) updateData.lastName = dto.lastName;
+    if (dto.phone) updateData.phone = dto.phone;
+    if (dto.avatar) updateData.avatar = dto.avatar;
     if (dto.password) updateData.password = await bcrypt.hash(dto.password, 10);
     if (dto.role) updateData.role = dto.role;
+    if (dto.status) updateData.status = dto.status;
 
     const user = await this.prisma.user.update({
       where: { id },
@@ -208,12 +242,12 @@ export class UserService {
   }
 
   /**
-   * Delete a user
+   * Delete a user (soft delete)
    * Security: Admins only
    */
   async remove(
-    id: number,
-    requestingUserId: number,
+    id: string,
+    requestingUserId: string,
     requestingUserRole: Role,
   ): Promise<{
     message: string;
@@ -225,7 +259,7 @@ export class UserService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
     });
 
     if (!user) {
@@ -237,8 +271,10 @@ export class UserService {
       throw new ForbiddenException('You cannot delete your own account');
     }
 
-    await this.prisma.user.delete({
+    // Soft delete
+    await this.prisma.user.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     return {

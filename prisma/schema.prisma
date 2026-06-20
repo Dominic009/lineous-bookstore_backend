@@ -27,6 +27,55 @@ enum Role {
   USER
 }
 
+enum Provider {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BookStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  COD
+  CARD
+  BANK_TRANSFER
+  MOBILE_BANKING
+}
+
+enum AttachmentType {
+  IMAGE
+  PDF
+  BANNER
+}
+
 /**
  * ============================
  * USER
@@ -34,11 +83,513 @@ enum Role {
  */
 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  password String
-  role     Role   @default(USER)
+  id            String     @id @default(uuid())
+  firstName     String?
+  lastName      String?
+  email         String     @unique
+  phone         String?
+  password      String?
+  provider      Provider   @default(EMAIL)
+  providerId    String?
+  avatar        String?
+  role          Role       @default(USER)
+  emailVerified Boolean    @default(false)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
 
+  // Relations
+  addresses Address[]
+  orders    Order[]
+  cart      Cart?
+  wishlists Wishlist[]
+  auditLogs AuditLog[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+/**
+ * ============================
+ * PUBLICATION
+ * ============================
+ */
+
+model Publication {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  logo        String?
+  status      BookStatus @default(PUBLISHED)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  books Book[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+/**
+ * ============================
+ * SUBJECT
+ * ============================
+ */
+
+model Subject {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  books Book[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+/**
+ * ============================
+ * BOOK
+ * ============================
+ */
+
+model Book {
+  id               String     @id @default(uuid())
+  title            String
+  slug             String     @unique
+  shortDescription String?
+  description      String?
+  isbn             String?    @unique
+  price            Decimal    @db.Decimal(10, 2)
+  discountPrice    Decimal?   @db.Decimal(10, 2)
+  publicationDate  DateTime?
+  edition          String?
+  language         String?
+  stock            Int        @default(0)
+  status           BookStatus @default(DRAFT)
+  thumbnail        String?
+  publicationId    String?
+  subjectId        String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  publication  Publication?     @relation(fields: [publicationId], references: [id])
+  subject      Subject?         @relation(fields: [subjectId], references: [id])
+  parts        BookPart[]
+  attachments  BookAttachment[]
+  reviews      Review[]
+  teacherBooks TeacherBook[]
+  orderItems   OrderItem[]
+  cartItems    CartItem[]
+  wishlists    Wishlist[]
+  categories   BookCategory[]
+
+  @@index([slug])
+  @@index([isbn])
+  @@index([title])
+}
+
+/**
+ * ============================
+ * BOOK PART
+ * ============================
+ */
+
+model BookPart {
+  id          String    @id @default(uuid())
+  bookId      String
+  title       String
+  partNumber  Int
+  description String?
+  price       Decimal?  @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * BOOK ATTACHMENT
+ * ============================
+ */
+
+model BookAttachment {
+  id        String         @id @default(uuid())
+  bookId    String
+  url       String
+  type      AttachmentType
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * REVIEW
+ * ============================
+ */
+
+model Review {
+  id           String     @id @default(uuid())
+  bookId       String
+  reviewerName String
+  designation  String?
+  rating       Int
+  comment      String?
+  displayOrder Int        @default(0)
+  status       BookStatus @default(PUBLISHED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * TEACHER
+ * ============================
+ */
+
+model Teacher {
+  id           String     @id @default(uuid())
+  name         String
+  designation  String?
+  bio          String?
+  photo        String?
+  facebook     String?
+  linkedin     String?
+  website      String?
+  displayOrder Int        @default(0)
+  featured     Boolean    @default(false)
+  status       BookStatus @default(PUBLISHED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  teacherBooks TeacherBook[]
+
+  @@index([name])
+}
+
+/**
+ * ============================
+ * TEACHER BOOK (Many-to-many)
+ * ============================
+ */
+
+model TeacherBook {
+  teacherId String
+  bookId    String
+
+  // Relations
+  teacher Teacher @relation(fields: [teacherId], references: [id])
+  book    Book    @relation(fields: [bookId], references: [id])
+
+  @@id([teacherId, bookId])
+  @@index([teacherId])
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * CATEGORY
+ * ============================
+ */
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  parentId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  parent   Category?      @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[]     @relation("CategoryHierarchy")
+  books    BookCategory[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+/**
+ * ============================
+ * BOOK CATEGORY (Many-to-many)
+ * ============================
+ */
+
+model BookCategory {
+  bookId     String
+  categoryId String
+
+  // Relations
+  book     Book     @relation(fields: [bookId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@id([bookId, categoryId])
+  @@index([bookId])
+  @@index([categoryId])
+}
+
+/**
+ * ============================
+ * BANNER
+ * ============================
+ */
+
+model Banner {
+  id           String     @id @default(uuid())
+  title        String
+  subtitle     String?
+  image        String
+  buttonText   String?
+  buttonUrl    String?
+  displayOrder Int        @default(0)
+  status       BookStatus @default(PUBLISHED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  @@index([displayOrder])
+}
+
+/**
+ * ============================
+ * SETTING
+ * ============================
+ */
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+/**
+ * ============================
+ * ADDRESS
+ * ============================
+ */
+
+model Address {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  phone       String
+  country     String
+  division    String
+  district    String
+  area        String
+  addressLine String
+  postalCode  String?
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  user   User?   @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([userId])
+}
+
+/**
+ * ============================
+ * CART
+ * ============================
+ */
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id])
+  cartItems CartItem[]
+
+  @@index([userId])
+}
+
+/**
+ * ============================
+ * CART ITEM
+ * ============================
+ */
+
+model CartItem {
+  id       String @id @default(uuid())
+  cartId   String
+  bookId   String
+  quantity Int    @default(1)
+
+  // Relations
+  cart Cart @relation(fields: [cartId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@index([cartId])
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * WISHLIST
+ * ============================
+ */
+
+model Wishlist {
+  id        String    @id @default(uuid())
+  userId    String
+  bookId    String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@unique([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * ORDER
+ * ============================
+ */
+
+model Order {
+  id            String         @id @default(uuid())
+  userId        String
+  addressId     String?
+  orderNumber   String         @unique
+  subtotal      Decimal        @db.Decimal(10, 2)
+  discount      Decimal?       @db.Decimal(10, 2)
+  shipping      Decimal?       @db.Decimal(10, 2)
+  total         Decimal        @db.Decimal(10, 2)
+  status        OrderStatus    @default(PENDING)
+  paymentStatus PaymentStatus  @default(PENDING)
+  paymentMethod PaymentMethod?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id])
+  address    Address?    @relation(fields: [addressId], references: [id])
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@index([userId])
+  @@index([addressId])
+  @@index([orderNumber])
+}
+
+/**
+ * ============================
+ * ORDER ITEM
+ * ============================
+ */
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  bookId    String
+  bookTitle String
+  bookPrice Decimal @db.Decimal(10, 2)
+  quantity  Int
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id])
+  book  Book  @relation(fields: [bookId], references: [id])
+
+  @@index([orderId])
+  @@index([bookId])
+}
+
+/**
+ * ============================
+ * PAYMENT
+ * ============================
+ */
+
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String
+  gateway       String
+  transactionId String?
+  amount        Decimal       @db.Decimal(10, 2)
+  currency      String        @default("USD")
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+/**
+ * ============================
+ * AUDIT LOG
+ * ============================
+ */
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  entity    String
+  entityId  String?
+  action    String
+  oldValue  String?
+  newValue  String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
 }

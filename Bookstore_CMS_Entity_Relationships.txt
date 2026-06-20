@@ -1,0 +1,26 @@
+﻿Bookstore CMS Entity Relationships
+Core relationships
+* Publication (1) -> (N) Book
+* Subject (1) -> (N) Book
+* Book (1) -> (N) BookPart
+* Book (1) -> (N) BookAttachment
+* Book (1) -> (N) Review
+* Teacher (N) <-> (N) Book via TeacherBook
+* User (1) -> (N) Order
+* Order (1) -> (N) OrderItem
+* Book (1) -> (N) OrderItem
+* Order (1) -> (1..N) Payment
+* User (1) -> (N) Address
+* User (1) -> (1) Cart
+* Cart (1) -> (N) CartItem
+* Book (1) -> (N) CartItem
+* User (1) -> (N) Wishlist
+* Book (1) -> (N) Wishlist
+* User (1) -> (N) AuditLog
+Design Notes
+- Use UUID primary keys.
+- Use deletedAt (nullable) for soft deletes.
+- Store createdAt/updatedAt on almost every table.
+- Index foreign keys, slug, email, ISBN, orderNumber.
+- Snapshot mutable values (bookTitle, bookPrice) in OrderItem.
+- Keep AuditLog immutable.

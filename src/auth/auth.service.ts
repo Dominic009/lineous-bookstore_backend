@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -10,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from './dto/signup.dto';
+import { User, Provider } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -20,10 +22,14 @@ export class AuthService {
 
   async adminLogin(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email, deletedAt: null },
     });
 
     if (!user || user.role !== 'ADMIN') {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -49,10 +55,14 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email, deletedAt: null },
     });
 
     if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -98,6 +108,8 @@ export class AuthService {
         email,
         password: hashedPassword,
         role: 'USER',
+        provider: 'EMAIL',
+        status: 'ACTIVE',
       },
     });
 
@@ -108,6 +120,68 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+      },
+    };
+  }
+
+  // OAuth login methods
+  async validateOAuthUser(
+    email: string,
+    provider: Provider,
+    providerId: string,
+    firstName?: string,
+    lastName?: string,
+    avatar?: string,
+  ): Promise<User> {
+    let user = await this.prisma.user.findUnique({
+      where: { email, deletedAt: null },
+    });
+
+    if (!user) {
+      // Create new user via OAuth
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          avatar,
+          provider,
+          providerId,
+          role: 'USER',
+          status: 'ACTIVE',
+          emailVerified: true,
+        },
+      });
+    } else {
+      // Update existing user with OAuth info if needed
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          provider,
+          providerId,
+          ...(firstName && { firstName }),
+          ...(lastName && { lastName }),
+          ...(avatar && { avatar }),
+          emailVerified: true,
+        },
+      });
+    }
+
+    return user;
+  }
+
+  async generateToken(user: User) {
+    const payload = {
+      sub: user.id,
+      role: user.role,
+    };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
       },
     };
   }
