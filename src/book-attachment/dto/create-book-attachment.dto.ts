@@ -16,6 +16,10 @@ export class CreateBookAttachmentDto {
   @IsNotEmpty()
   url!: string;
 
+  @IsString()
+  @IsNotEmpty()
+  publicId!: string;
+
   @IsEnum(AttachmentType)
   @IsNotEmpty()
   type!: AttachmentType;

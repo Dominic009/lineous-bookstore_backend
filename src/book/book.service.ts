@@ -10,19 +10,23 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
-import { Book, Role, BookStatus } from '@prisma/client';
+import { Book, Role, BookStatus, AttachmentType } from '@prisma/client';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class BookService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Create a new book
+   * Create a new book with optional thumbnail and attachments
    * Security: Admins only
    */
   async create(
     dto: CreateBookDto,
     requestingUserRole: Role,
+    thumbnail?: Express.Multer.File,
+    attachments?: Express.Multer.File[],
+    cloudinaryService?: CloudinaryService,
   ): Promise<{
     message: string;
     status: string;
@@ -52,6 +56,20 @@ export class BookService {
       }
     }
 
+    // Handle thumbnail upload
+    let thumbnailUrl: string | undefined;
+    let thumbnailPublicId: string | undefined;
+
+    if (thumbnail && cloudinaryService) {
+      const result = await cloudinaryService.uploadFile(
+        thumbnail,
+        'bookstore/thumbnails',
+      );
+      thumbnailUrl = result.url;
+      thumbnailPublicId = result.publicId;
+    }
+
+    // Create the book
     const book = await this.prisma.book.create({
       data: {
         title: dto.title,
@@ -68,7 +86,7 @@ export class BookService {
         language: dto.language,
         stock: dto.stock ?? 0,
         status: dto.status || BookStatus.DRAFT,
-        thumbnail: dto.thumbnail,
+        thumbnail: thumbnailUrl || dto.thumbnail,
         publicationId: dto.publicationId,
         subjectId: dto.subjectId,
       },
@@ -77,6 +95,38 @@ export class BookService {
         subject: true,
       },
     });
+
+    // Handle additional attachments
+    if (attachments && attachments.length > 0 && cloudinaryService) {
+      for (const file of attachments) {
+        const result = await cloudinaryService.uploadFile(
+          file,
+          'bookstore/attachments',
+        );
+        await this.prisma.bookAttachment.create({
+          data: {
+            bookId: book.id,
+            url: result.url,
+            publicId: result.publicId,
+            type: AttachmentType.IMAGE,
+            sortOrder: 0,
+          },
+        });
+      }
+    }
+
+    // If thumbnail was uploaded, also create a BookAttachment for it
+    if (thumbnailUrl && thumbnailPublicId && cloudinaryService) {
+      await this.prisma.bookAttachment.create({
+        data: {
+          bookId: book.id,
+          url: thumbnailUrl,
+          publicId: thumbnailPublicId,
+          type: AttachmentType.THUMBNAIL,
+          sortOrder: 0,
+        },
+      });
+    }
 
     return {
       message: 'Book created successfully',
@@ -105,6 +155,7 @@ export class BookService {
       include: {
         publication: true,
         subject: true,
+        attachments: true,
       },
     });
 
@@ -226,6 +277,7 @@ export class BookService {
       include: {
         publication: true,
         subject: true,
+        attachments: true,
       },
     });
 

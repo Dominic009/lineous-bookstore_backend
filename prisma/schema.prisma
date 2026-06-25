@@ -74,6 +74,7 @@ enum AttachmentType {
   IMAGE
   PDF
   BANNER
+  THUMBNAIL
 }
 
 /**
@@ -233,6 +234,7 @@ model BookAttachment {
   id        String         @id @default(uuid())
   bookId    String
   url       String
+  publicId  String
   type      AttachmentType
   sortOrder Int            @default(0)
   createdAt DateTime       @default(now())

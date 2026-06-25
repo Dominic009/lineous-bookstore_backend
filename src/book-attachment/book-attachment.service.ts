@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 import {
   Injectable,
   NotFoundException,
@@ -11,10 +10,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookAttachmentDto } from './dto/create-book-attachment.dto';
 import { UpdateBookAttachmentDto } from './dto/update-book-attachment.dto';
 import { BookAttachment, Role, BookStatus } from '@prisma/client';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class BookAttachmentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   /**
    * Create a new book attachment
@@ -47,6 +50,7 @@ export class BookAttachmentService {
       data: {
         bookId: dto.bookId,
         url: dto.url,
+        publicId: dto.publicId,
         type: dto.type,
         sortOrder: dto.sortOrder ?? 0,
       },
@@ -151,10 +155,16 @@ export class BookAttachmentService {
       throw new NotFoundException('Book attachment not found');
     }
 
+    // If publicId is being changed, delete old file from Cloudinary
+    if (dto.publicId && dto.publicId !== existingBookAttachment.publicId) {
+      await this.cloudinaryService.deleteFile(existingBookAttachment.publicId);
+    }
+
     const bookAttachment = await this.prisma.bookAttachment.update({
       where: { id },
       data: {
         url: dto.url,
+        publicId: dto.publicId,
         type: dto.type,
         sortOrder: dto.sortOrder,
       },
@@ -168,7 +178,7 @@ export class BookAttachmentService {
   }
 
   /**
-   * Delete a book attachment (soft delete)
+   * Delete a book attachment (soft delete from DB + hard delete from Cloudinary)
    * Security: Admins only
    */
   async remove(
@@ -193,7 +203,10 @@ export class BookAttachmentService {
       throw new NotFoundException('Book attachment not found');
     }
 
-    // Soft delete
+    // Delete from Cloudinary
+    await this.cloudinaryService.deleteFile(bookAttachment.publicId);
+
+    // Soft delete from DB
     await this.prisma.bookAttachment.update({
       where: { id },
       data: { deletedAt: new Date() },

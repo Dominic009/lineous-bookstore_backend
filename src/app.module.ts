@@ -20,6 +20,7 @@ import { BannerModule } from './banner/banner.module';
 import { SettingModule } from './setting/setting.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
     SettingModule,
     AuditLogModule,
     FileUploadModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

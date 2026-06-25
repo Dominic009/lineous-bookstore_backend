@@ -3,9 +3,10 @@ import { FileUploadService } from './file-upload.service';
 import { FileUploadController } from './file-upload.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { MulterModule } from '@nestjs/platform-express';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [MulterModule.register({})],
+  imports: [MulterModule.register({}), CloudinaryModule],
   controllers: [FileUploadController],
   providers: [FileUploadService, PrismaService],
   exports: [FileUploadService],

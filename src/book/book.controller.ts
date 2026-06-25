@@ -9,6 +9,9 @@ import {
   Body,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -17,6 +20,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { Role } from '@prisma/client';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 /**
  * Request interface with user from JWT
@@ -31,17 +36,35 @@ interface RequestWithUser extends Request {
 
 @Controller('books')
 export class BookController {
-  constructor(private readonly bookService: BookService) {}
+  constructor(
+    private readonly bookService: BookService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   /**
-   * Create a new book
+   * Create a new book with optional thumbnail and attachments
    * Access: Admins only
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  create(@Body() dto: CreateBookDto, @Request() req: RequestWithUser) {
-    return this.bookService.create(dto, req.user.role);
+  @UseInterceptors(
+    FileInterceptor('thumbnail'),
+    FilesInterceptor('attachments', 10),
+  )
+  async create(
+    @Body() dto: CreateBookDto,
+    @Request() req: RequestWithUser,
+    @UploadedFile() thumbnail?: Express.Multer.File,
+    @UploadedFiles() attachments?: Express.Multer.File[],
+  ) {
+    return this.bookService.create(
+      dto,
+      req.user.role,
+      thumbnail,
+      attachments,
+      this.cloudinaryService,
+    );
   }
 
   /**

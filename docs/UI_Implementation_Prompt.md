@@ -122,8 +122,9 @@ This document provides detailed UI specifications for the main admin pages. The 
 - Full Description (rich text editor)
 
 #### 4. Media
-- Thumbnail Upload (image preview with remove option)
-- Multiple Image Upload (gallery)
+- Thumbnail Upload (single image, image preview with remove option)
+- Multiple Image Upload (gallery, multiple images)
+- All images are uploaded to Cloudinary via a single `multipart/form-data` POST request to `/api/books`
 
 #### 5. Relations
 - Publication (select with search)
@@ -159,16 +160,17 @@ This document provides detailed UI specifications for the main admin pages. The 
 - Save/Cancel buttons
 
 #### Attachments Tab
-- File type tabs: Images, PDFs, Banners
+- File type tabs: Thumbnails, Images, PDFs, Banners
 - Grid view for images
 - List view for PDFs
 - Upload button for each type
 
 **Upload Attachment:**
 - File picker
-- Type selection
+- Type selection (THUMBNAIL, IMAGE, PDF, BANNER)
 - Sort order
 - Preview before upload
+- Files are uploaded to Cloudinary; `publicId` is stored for deletion
 
 ---
 
@@ -394,9 +396,11 @@ Dashboard
 
 ### File Uploads
 - Use multipart/form-data
+- Files are uploaded to Cloudinary
 - Show upload progress
 - Validate file types (images: jpg/png/webp, PDFs: application/pdf)
 - Max file size: 10MB
+- Store returned `publicId` for each file (required for deletion)
 
 ### Form Validation
 - Client-side validation matching backend rules

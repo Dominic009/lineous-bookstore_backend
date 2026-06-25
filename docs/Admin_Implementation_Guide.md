@@ -239,35 +239,46 @@ Content-Type: application/json
 
 ### Create Book
 **Endpoint:** `POST /api/books`  
-**Access:** Admin only
+**Access:** Admin only  
+**Content-Type:** `multipart/form-data`
 
-**Request Body:**
-```json
-{
-  "title": "Sample Book",
-  "slug": "sample-book",
-  "shortDescription": "A sample book for testing",
-  "description": "Detailed description",
-  "isbn": "978-0-123456-78-9",
-  "price": 29.99,
-  "discountPrice": 24.99,
-  "publicationDate": "2024-01-01",
-  "edition": "1st Edition",
-  "language": "English",
-  "stock": 100,
-  "status": "PUBLISHED",
-  "publicationId": "uuid",
-  "subjectId": "uuid"
-}
+**Form Fields:**
+- `title` (string, required)
+- `slug` (string, required, unique)
+- `shortDescription` (string, optional)
+- `description` (string, optional)
+- `isbn` (string, optional, unique)
+- `price` (number, required)
+- `discountPrice` (number, optional)
+- `publicationDate` (string, optional, ISO date)
+- `edition` (string, optional)
+- `language` (string, optional)
+- `stock` (number, optional, default: 0)
+- `status` (string, optional, default: DRAFT)
+- `publicationId` (string, optional)
+- `subjectId` (string, optional)
+- `thumbnail` (file, optional) — Book cover image
+- `attachments` (files, optional) — Additional book images
+
+**Headers:**
 ```
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**Response includes:** Book data with `thumbnail` URL and `attachments` array (each containing `url`, `publicId`, `type`).
 
 ### Get All Books
 **Endpoint:** `GET /api/books`  
 **Access:** Public
 
+**Response includes:** Each book contains `thumbnail` URL and `attachments` array.
+
 ### Get Book by ID
 **Endpoint:** `GET /api/books/:id`  
 **Access:** Public
+
+**Response includes:** Full book details with `thumbnail` URL and all `attachments` (images, PDFs, banners).
 
 ### Update Book
 **Endpoint:** `PATCH /api/books/:id`  
@@ -324,13 +335,14 @@ Content-Type: application/json
 ```json
 {
   "bookId": "uuid",
-  "url": "https://example.com/file.pdf",
-  "type": "PDF",
+  "url": "https://res.cloudinary.com/...",
+  "publicId": "bookstore/abc123",
+  "type": "IMAGE",
   "sortOrder": 1
 }
 ```
 
-**Attachment Types:** `IMAGE`, `PDF`, `BANNER`
+**Attachment Types:** `IMAGE`, `PDF`, `BANNER`, `THUMBNAIL`
 
 ### Get All Book Attachments
 **Endpoint:** `GET /api/book-attachments?bookId=uuid`  
@@ -344,9 +356,21 @@ Content-Type: application/json
 **Endpoint:** `PATCH /api/book-attachments/:id`  
 **Access:** Admin only
 
+**Request Body:**
+```json
+{
+  "url": "https://res.cloudinary.com/...",
+  "publicId": "bookstore/xyz789",
+  "type": "IMAGE",
+  "sortOrder": 2
+}
+```
+
 ### Delete Book Attachment
 **Endpoint:** `DELETE /api/book-attachments/:id`  
 **Access:** Admin only
+
+**Note:** Deleting an attachment also removes the file from Cloudinary storage using the stored `publicId`.
 
 ---
 
@@ -613,20 +637,40 @@ Content-Type: application/json
 
 ## File Upload
 
+Files are uploaded to Cloudinary. The API returns a Cloudinary `url` and `publicId` for each uploaded file. The `publicId` is required for future deletion from Cloudinary.
+
 ### Upload Book Attachment
 **Endpoint:** `POST /api/upload/book-attachment`  
 **Access:** Admin only
 
 **Form Data:**
-- `file`: The file to upload
+- `file`: The file to upload (max 10MB)
 - `bookId`: UUID of the book
-- `type`: `IMAGE`, `PDF`, or `BANNER`
+- `type`: `IMAGE`, `PDF`, `BANNER`, or `THUMBNAIL`
 
 **Headers:**
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: multipart/form-data
 ```
+
+**Response:**
+```json
+{
+  "message": "File uploaded successfully",
+  "status": "success",
+  "data": {
+    "url": "https://res.cloudinary.com/...",
+    "publicId": "bookstore/abc123"
+  }
+}
+```
+
+### Delete Book Attachment
+**Endpoint:** `DELETE /api/upload/book-attachment/:id`  
+**Access:** Admin only
+
+**Note:** This permanently deletes the file from Cloudinary and soft-deletes the attachment record from the database.
 
 ---
 
@@ -693,6 +737,7 @@ All API responses follow this format:
 - `IMAGE`
 - `PDF`
 - `BANNER`
+- `THUMBNAIL`
 
 ### Provider
 - `EMAIL`

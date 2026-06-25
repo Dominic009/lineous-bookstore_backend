@@ -2,15 +2,19 @@ import { IsString, IsOptional, IsEnum, IsNumber } from 'class-validator';
 import { AttachmentType } from '@prisma/client';
 
 export class UpdateBookAttachmentDto {
-  @IsOptional()
   @IsString()
+  @IsOptional()
   url?: string;
+
+  @IsString()
+  @IsOptional()
+  publicId?: string;
 
   @IsEnum(AttachmentType)
   @IsOptional()
   type?: AttachmentType;
 
-  @IsOptional()
   @IsNumber()
+  @IsOptional()
   sortOrder?: number;
 }

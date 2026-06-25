@@ -2,10 +2,12 @@
 import {
   Controller,
   Post,
+  Delete,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   Body,
+  Param,
 } from '@nestjs/common';
 import { FileUploadService } from './file-upload.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -32,5 +34,14 @@ export class FileUploadController {
     @Body('type') type: AttachmentType,
   ) {
     return this.fileUploadService.uploadBookAttachment(file, bookId, type);
+  }
+
+  /**
+   * Delete a book attachment
+   * Access: Admins only
+   */
+  @Delete('book-attachment/:id')
+  remove(@Param('id') id: string) {
+    return this.fileUploadService.deleteBookAttachment(id);
   }
 }
