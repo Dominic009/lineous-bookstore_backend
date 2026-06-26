@@ -100,18 +100,31 @@ export class BookController {
   }
 
   /**
-   * Update a book
+   * Update a book with optional thumbnail and attachments
    * Access: Admins only
    */
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('thumbnail'),
+    FilesInterceptor('attachments', 10),
+  )
   update(
     @Param('id') id: string,
     @Body() dto: UpdateBookDto,
     @Request() req: AuthenticatedRequest,
+    @UploadedFile() thumbnail?: Express.Multer.File,
+    @UploadedFiles() attachments?: Express.Multer.File[],
   ) {
-    return this.bookService.update(id, dto, req.user.role);
+    return this.bookService.update(
+      id,
+      dto,
+      req.user.role,
+      thumbnail,
+      attachments,
+      this.cloudinaryService,
+    );
   }
 
   /**

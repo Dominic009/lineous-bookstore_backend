@@ -211,13 +211,16 @@ export class BookService {
   }
 
   /**
-   * Update a book
+   * Update a book with optional thumbnail and attachments
    * Security: Admins only
    */
   async update(
     id: string,
     dto: UpdateBookDto,
     requestingUserRole: Role,
+    thumbnail?: Express.Multer.File,
+    attachments?: Express.Multer.File[],
+    cloudinaryService?: CloudinaryService,
   ): Promise<{
     message: string;
     status: string;
@@ -257,6 +260,19 @@ export class BookService {
       }
     }
 
+    // Handle thumbnail upload
+    let thumbnailUrl: string | undefined;
+    let thumbnailPublicId: string | undefined;
+
+    if (thumbnail && cloudinaryService) {
+      const result = await cloudinaryService.uploadFile(
+        thumbnail,
+        'bookstore/thumbnails',
+      );
+      thumbnailUrl = result.url;
+      thumbnailPublicId = result.publicId;
+    }
+
     // Build update data object - only include fields that are provided
     const updateData: Record<string, unknown> = {};
 
@@ -276,7 +292,12 @@ export class BookService {
     if (dto.stock !== undefined) updateData.stock = dto.stock;
     if (dto.stockAmount !== undefined) updateData.stockAmount = dto.stockAmount;
     if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.thumbnail !== undefined) updateData.thumbnail = dto.thumbnail;
+    // If new thumbnail uploaded, use it; otherwise use the provided URL
+    if (thumbnailUrl) {
+      updateData.thumbnail = thumbnailUrl;
+    } else if (dto.thumbnail !== undefined) {
+      updateData.thumbnail = dto.thumbnail;
+    }
     if (dto.publicationId !== undefined)
       updateData.publicationId = dto.publicationId;
     if (dto.subjectId !== undefined) updateData.subjectId = dto.subjectId;
@@ -290,6 +311,38 @@ export class BookService {
         attachments: true,
       },
     });
+
+    // Handle additional attachments
+    if (attachments && attachments.length > 0 && cloudinaryService) {
+      for (const file of attachments) {
+        const result = await cloudinaryService.uploadFile(
+          file,
+          'bookstore/attachments',
+        );
+        await this.prisma.bookAttachment.create({
+          data: {
+            bookId: book.id,
+            url: result.url,
+            publicId: result.publicId,
+            type: AttachmentType.IMAGE,
+            sortOrder: 0,
+          },
+        });
+      }
+    }
+
+    // If thumbnail was uploaded, also create a BookAttachment for it
+    if (thumbnailUrl && thumbnailPublicId && cloudinaryService) {
+      await this.prisma.bookAttachment.create({
+        data: {
+          bookId: book.id,
+          url: thumbnailUrl,
+          publicId: thumbnailPublicId,
+          type: AttachmentType.THUMBNAIL,
+          sortOrder: 0,
+        },
+      });
+    }
 
     return {
       message: BookSuccessMessages.UPDATED,

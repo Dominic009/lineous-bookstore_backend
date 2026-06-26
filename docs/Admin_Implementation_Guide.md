@@ -283,7 +283,32 @@ Content-Type: multipart/form-data
 
 ### Update Book
 **Endpoint:** `PATCH /api/books/:id`  
-**Access:** Admin only
+**Access:** Admin only  
+**Content-Type:** `multipart/form-data`
+
+**Request Body (FormData):**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| title | string | No | Book title |
+| slug | string | No | URL slug (must be unique) |
+| shortDescription | string | No | Short description |
+| description | string | No | Full description |
+| isbn | string | No | ISBN (must be unique) |
+| price | number | No | Price (non-negative) |
+| discountPrice | number | No | Discount price (non-negative, ≤ price) |
+| publicationDate | string | No | ISO date string |
+| edition | string | No | Edition |
+| language | string | No | Language |
+| stock | boolean | No | Has stock (print-on-demand: false) |
+| stockAmount | number | No | Stock quantity (if stock is true) |
+| status | string | No | `DRAFT`, `PUBLISHED`, or `ARCHIVED` |
+| thumbnail | File | No | New thumbnail image (replaces existing) |
+| thumbnail | string | No | Or provide thumbnail URL directly |
+| publicationId | string | No | Publication ID |
+| subjectId | string | No | Subject ID |
+| attachments | File[] | No | Additional attachment images (appended) |
+
+**Note:** All fields are optional. Only provided fields will be updated. New files are uploaded to Cloudinary automatically.
 
 ### Delete Book
 **Endpoint:** `DELETE /api/books/:id`  

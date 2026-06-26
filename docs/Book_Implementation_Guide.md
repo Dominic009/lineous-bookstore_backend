@@ -682,9 +682,33 @@ export class BookAttachmentService {
 
 ### 4. Update Book
 **Endpoint:** `PATCH /api/books/:id`  
-**Content-Type:** `application/json`
+**Content-Type:** `multipart/form-data`
 
-Updates book metadata. For updating images, use the attachment endpoints.
+Updates book metadata and/or uploads new files. All fields are optional.
+
+**Form Data Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| title | string | Book title |
+| slug | string | URL slug (must be unique) |
+| shortDescription | string | Short description |
+| description | string | Full description |
+| isbn | string | ISBN (must be unique) |
+| price | number | Price (non-negative) |
+| discountPrice | number | Discount price (non-negative, ≤ price) |
+| publicationDate | string | ISO date string |
+| edition | string | Edition |
+| language | string | Language |
+| stock | boolean | Has stock (print-on-demand: false) |
+| stockAmount | number | Stock quantity (if stock is true) |
+| status | string | `DRAFT`, `PUBLISHED`, or `ARCHIVED` |
+| thumbnail | File | New thumbnail image (replaces existing) |
+| thumbnail | string | Or provide thumbnail URL directly |
+| publicationId | string | Publication ID |
+| subjectId | string | Subject ID |
+| attachments | File[] | Additional attachment images (appended) |
+
+**Note:** New files are uploaded to Cloudinary automatically. Existing attachments are preserved unless explicitly deleted via the attachment endpoints.
 
 ### 5. Delete Book
 **Endpoint:** `DELETE /api/books/:id`
