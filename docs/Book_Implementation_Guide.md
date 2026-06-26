@@ -30,7 +30,8 @@ model Book {
   publicationDate  DateTime?
   edition          String?
   language         String?
-  stock            Int        @default(0)
+  stock            Boolean    @default(false)
+  stockAmount      Int?
   status           BookStatus @default(DRAFT)
   thumbnail        String?    // Cloudinary URL for book cover
   publicationId    String?
@@ -216,7 +217,7 @@ export class BookAttachmentModule {}
 ### CreateBookDto
 ```typescript
 // src/book/dto/create-book.dto.ts
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsDateString, IsBoolean } from 'class-validator';
 import { BookStatus } from '@prisma/client';
 
 export class CreateBookDto {
@@ -230,7 +231,8 @@ export class CreateBookDto {
   @IsOptional() @IsDateString() publicationDate?: string;
   @IsOptional() @IsString() edition?: string;
   @IsOptional() @IsString() language?: string;
-  @IsOptional() @IsNumber() stock?: number;
+  @IsOptional() @IsBoolean() stock?: boolean;
+  @IsOptional() @IsNumber() stockAmount?: number;
   @IsEnum(BookStatus) @IsOptional() status?: BookStatus = BookStatus.DRAFT;
   @IsOptional() @IsString() thumbnail?: string;
   @IsOptional() @IsString() publicationId?: string;
@@ -431,7 +433,8 @@ export class BookService {
         publicationDate: dto.publicationDate ? new Date(dto.publicationDate) : undefined,
         edition: dto.edition,
         language: dto.language,
-        stock: dto.stock ?? 0,
+        stock: dto.stock ?? false,
+        stockAmount: dto.stockAmount,
         status: dto.status || BookStatus.DRAFT,
         thumbnail: thumbnailUrl || dto.thumbnail,
         publicationId: dto.publicationId,

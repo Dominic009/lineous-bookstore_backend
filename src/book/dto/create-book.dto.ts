@@ -8,8 +8,13 @@ import {
   IsNumber,
   //   IsDecimal,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
 import { BookStatus } from '@prisma/client';
+import {
+  IsDiscountLessThanPrice,
+  IsNonNegative,
+} from '../../common/validators/book.validators';
 
 export class CreateBookDto {
   @IsString()
@@ -34,10 +39,15 @@ export class CreateBookDto {
 
   @IsNumber()
   @IsNotEmpty()
+  @IsNonNegative({ message: 'Price must be a non-negative number' })
   price!: number;
 
   @IsOptional()
   @IsNumber()
+  @IsNonNegative({ message: 'Discount price must be a non-negative number' })
+  @IsDiscountLessThanPrice('price', {
+    message: 'Discount price must be less than or equal to original price',
+  })
   discountPrice?: number;
 
   @IsOptional()
@@ -53,8 +63,13 @@ export class CreateBookDto {
   language?: string;
 
   @IsOptional()
+  @IsBoolean()
+  stock?: boolean;
+
+  @IsOptional()
   @IsNumber()
-  stock?: number;
+  @IsNonNegative({ message: 'Stock amount must be a non-negative number' })
+  stockAmount?: number;
 
   @IsEnum(BookStatus)
   @IsOptional()

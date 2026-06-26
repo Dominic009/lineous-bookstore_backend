@@ -17,6 +17,7 @@ import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from 'src/auth/optional-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { Role } from '@prisma/client';
@@ -24,9 +25,20 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 /**
- * Request interface with user from JWT
+ * Request interface with user from JWT (optional for public endpoints)
  */
 interface RequestWithUser extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: Role;
+  };
+}
+
+/**
+ * Request interface for authenticated endpoints
+ */
+interface AuthenticatedRequest extends Request {
   user: {
     id: string;
     email: string;
@@ -54,7 +66,7 @@ export class BookController {
   )
   async create(
     @Body() dto: CreateBookDto,
-    @Request() req: RequestWithUser,
+    @Request() req: AuthenticatedRequest,
     @UploadedFile() thumbnail?: Express.Multer.File,
     @UploadedFiles() attachments?: Express.Multer.File[],
   ) {
@@ -69,18 +81,20 @@ export class BookController {
 
   /**
    * Get all books
-   * Access: Public
+   * Access: Public (returns PUBLISHED only) or Admin (returns all)
    */
   @Get()
+  @UseGuards(OptionalJwtAuthGuard, RolesGuard)
   findAll(@Request() req: RequestWithUser) {
     return this.bookService.findAll(req?.user?.role);
   }
 
   /**
    * Get a single book by ID
-   * Access: Public
+   * Access: Public (returns PUBLISHED only) or Admin (returns any status)
    */
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard, RolesGuard)
   findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
     return this.bookService.findOne(id, req?.user?.role);
   }
@@ -95,7 +109,7 @@ export class BookController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateBookDto,
-    @Request() req: RequestWithUser,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.bookService.update(id, dto, req.user.role);
   }
@@ -107,7 +121,7 @@ export class BookController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  remove(@Param('id') id: string, @Request() req: RequestWithUser) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.bookService.remove(id, req.user.role);
   }
 }

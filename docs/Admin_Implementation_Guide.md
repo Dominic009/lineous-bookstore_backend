@@ -253,7 +253,8 @@ Content-Type: application/json
 - `publicationDate` (string, optional, ISO date)
 - `edition` (string, optional)
 - `language` (string, optional)
-- `stock` (number, optional, default: 0)
+- `stock` (boolean, optional, default: false) — Whether the book has stock available
+- `stockAmount` (number, optional) — The actual stock quantity (only used if stock is true)
 - `status` (string, optional, default: DRAFT)
 - `publicationId` (string, optional)
 - `subjectId` (string, optional)

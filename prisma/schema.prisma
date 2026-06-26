@@ -175,7 +175,8 @@ model Book {
   publicationDate  DateTime?
   edition          String?
   language         String?
-  stock            Int        @default(0)
+  stock            Boolean    @default(false)
+  stockAmount      Int?
   status           BookStatus @default(DRAFT)
   thumbnail        String?
   publicationId    String?
@@ -559,7 +560,7 @@ model Payment {
   gateway       String
   transactionId String?
   amount        Decimal       @db.Decimal(10, 2)
-  currency      String        @default("USD")
+  currency      String        @default("BDT")
   status        PaymentStatus @default(PENDING)
   paidAt        DateTime?
   createdAt     DateTime      @default(now())

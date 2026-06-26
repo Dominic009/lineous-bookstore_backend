@@ -12,6 +12,7 @@ import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { Book, Role, BookStatus, AttachmentType } from '@prisma/client';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { BookSuccessMessages } from '../common/validators/book.validators';
 
 @Injectable()
 export class BookService {
@@ -84,7 +85,8 @@ export class BookService {
           : undefined,
         edition: dto.edition,
         language: dto.language,
-        stock: dto.stock ?? 0,
+        stock: dto.stock ?? false,
+        stockAmount: dto.stockAmount,
         status: dto.status || BookStatus.DRAFT,
         thumbnail: thumbnailUrl || dto.thumbnail,
         publicationId: dto.publicationId,
@@ -129,7 +131,7 @@ export class BookService {
     }
 
     return {
-      message: 'Book created successfully',
+      message: BookSuccessMessages.CREATED,
       status: 'success',
       data: book,
     };
@@ -161,7 +163,9 @@ export class BookService {
 
     return {
       message:
-        books.length > 0 ? 'Books retrieved successfully' : 'No books found',
+        books.length > 0
+          ? BookSuccessMessages.RETRIEVED_ALL
+          : BookSuccessMessages.NOT_FOUND,
       status: 'success',
       data: books,
     };
@@ -200,7 +204,7 @@ export class BookService {
     }
 
     return {
-      message: 'Book retrieved successfully',
+      message: BookSuccessMessages.RETRIEVED,
       status: 'success',
       data: book,
     };
@@ -253,27 +257,33 @@ export class BookService {
       }
     }
 
+    // Build update data object - only include fields that are provided
+    const updateData: Record<string, unknown> = {};
+
+    if (dto.title !== undefined) updateData.title = dto.title;
+    if (dto.slug !== undefined) updateData.slug = dto.slug;
+    if (dto.shortDescription !== undefined)
+      updateData.shortDescription = dto.shortDescription;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.isbn !== undefined) updateData.isbn = dto.isbn;
+    if (dto.price !== undefined) updateData.price = dto.price;
+    if (dto.discountPrice !== undefined)
+      updateData.discountPrice = dto.discountPrice;
+    if (dto.publicationDate !== undefined)
+      updateData.publicationDate = new Date(dto.publicationDate);
+    if (dto.edition !== undefined) updateData.edition = dto.edition;
+    if (dto.language !== undefined) updateData.language = dto.language;
+    if (dto.stock !== undefined) updateData.stock = dto.stock;
+    if (dto.stockAmount !== undefined) updateData.stockAmount = dto.stockAmount;
+    if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.thumbnail !== undefined) updateData.thumbnail = dto.thumbnail;
+    if (dto.publicationId !== undefined)
+      updateData.publicationId = dto.publicationId;
+    if (dto.subjectId !== undefined) updateData.subjectId = dto.subjectId;
+
     const book = await this.prisma.book.update({
       where: { id },
-      data: {
-        title: dto.title,
-        slug: dto.slug,
-        shortDescription: dto.shortDescription,
-        description: dto.description,
-        isbn: dto.isbn,
-        price: dto.price,
-        discountPrice: dto.discountPrice,
-        publicationDate: dto.publicationDate
-          ? new Date(dto.publicationDate)
-          : undefined,
-        edition: dto.edition,
-        language: dto.language,
-        stock: dto.stock,
-        status: dto.status,
-        thumbnail: dto.thumbnail,
-        publicationId: dto.publicationId,
-        subjectId: dto.subjectId,
-      },
+      data: updateData,
       include: {
         publication: true,
         subject: true,
@@ -282,7 +292,7 @@ export class BookService {
     });
 
     return {
-      message: 'Book updated successfully',
+      message: BookSuccessMessages.UPDATED,
       status: 'success',
       data: book,
     };
@@ -319,7 +329,7 @@ export class BookService {
     });
 
     return {
-      message: 'Book deleted successfully',
+      message: BookSuccessMessages.DELETED,
       status: 'success',
       data: null,
     };

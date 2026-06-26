@@ -75,7 +75,8 @@ async function main() {
       publicationDate: new Date('2024-01-01'),
       edition: '1st Edition',
       language: 'English',
-      stock: 100,
+      stock: true,
+      stockAmount: 100,
       status: BookStatus.PUBLISHED,
       publicationId: publication.id,
       subjectId: subject.id,
@@ -100,7 +101,7 @@ async function main() {
   // Create sample settings
   const settings = [
     { key: 'site_name', value: 'Bookstore CMS' },
-    { key: 'currency', value: 'USD' },
+    { key: 'currency', value: 'BDT' },
     { key: 'tax_rate', value: '0' },
   ];
 

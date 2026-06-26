@@ -297,7 +297,7 @@ Subjects help organize books by topic (e.g., Fiction, Science, History).
 
 ### Common Settings
 - **site_name**: Website name
-- **currency**: Default currency (e.g., USD)
+- **currency**: Default currency (e.g., BDT)
 - **tax_rate**: Tax percentage
 
 ### Adding New Settings

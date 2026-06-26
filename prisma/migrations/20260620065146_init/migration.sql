@@ -310,7 +310,7 @@ CREATE TABLE "Payment" (
     "gateway" TEXT NOT NULL,
     "transactionId" TEXT,
     "amount" DECIMAL(10,2) NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'BDT',
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "paidAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
