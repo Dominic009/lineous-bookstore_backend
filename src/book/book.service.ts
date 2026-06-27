@@ -158,6 +158,7 @@ export class BookService {
         publication: true,
         subject: true,
         attachments: true,
+        reviews: true,
       },
     });
 
