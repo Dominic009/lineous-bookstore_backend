@@ -227,6 +227,29 @@ export class BookService {
     status: string;
     data: Book;
   }> {
+    // console.log(`[DEBUG] Book update service - ID: ${id}`);
+    // console.log(`[DEBUG] DTO:`, JSON.stringify(dto, null, 2));
+    // console.log(
+    //   `[DEBUG] Thumbnail:`,
+    //   thumbnail
+    //     ? {
+    //         name: thumbnail.originalname,
+    //         size: thumbnail.size,
+    //         mimetype: thumbnail.mimetype,
+    //       }
+    //     : null,
+    // );
+    // console.log(
+    //   `[DEBUG] Attachments:`,
+    //   attachments
+    //     ? attachments.map((a) => ({
+    //         name: a.originalname,
+    //         size: a.size,
+    //         mimetype: a.mimetype,
+    //       }))
+    //     : [],
+    // );
+
     if (requestingUserRole !== Role.ADMIN) {
       throw new ForbiddenException('Only administrators can update books');
     }

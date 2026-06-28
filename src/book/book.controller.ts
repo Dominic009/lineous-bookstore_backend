@@ -100,32 +100,129 @@ export class BookController {
   }
 
   /**
-   * Update a book with optional thumbnail and attachments
+   * Update a book with optional thumbnail
    * Access: Admins only
+   * Note: Attachments are managed via separate endpoints (POST /book-attachments, DELETE /upload/book-attachment/:id)
    */
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  @UseInterceptors(
-    FileInterceptor('thumbnail'),
-    FilesInterceptor('attachments', 10),
-  )
+  @UseInterceptors(FileInterceptor('thumbnail'))
   update(
     @Param('id') id: string,
     @Body() dto: UpdateBookDto,
     @Request() req: AuthenticatedRequest,
     @UploadedFile() thumbnail?: Express.Multer.File,
-    @UploadedFiles() attachments?: Express.Multer.File[],
   ) {
+    // console.log(`[DEBUG] Book update controller - ID: ${id}`);
+    // console.log(`[DEBUG] DTO keys:`, Object.keys(dto || {}));
+    // console.log(
+    //   `[DEBUG] Thumbnail file:`,
+    //   thumbnail
+    //     ? {
+    //         name: thumbnail.originalname,
+    //         size: thumbnail.size,
+    //         mimetype: thumbnail.mimetype,
+    //       }
+    //     : null,
+    // );
     return this.bookService.update(
       id,
       dto,
       req.user.role,
       thumbnail,
-      attachments,
+      undefined,
       this.cloudinaryService,
     );
   }
+
+  /**
+   * Test endpoint for debugging file uploads
+   * Access: Admins only
+   */
+  // @Post('test-upload')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ADMIN)
+  // @UseInterceptors(FileInterceptor('file'))
+  // testUpload(@UploadedFile() file?: Express.Multer.File) {
+  //   console.log(
+  //     '[DEBUG] Test upload - file:',
+  //     file
+  //       ? {
+  //           name: file.originalname,
+  //           size: file.size,
+  //           mimetype: file.mimetype,
+  //         }
+  //       : null,
+  //   );
+  //   return { success: true, file };
+  // }
+
+  /**
+   * Simplified test endpoint - mimics update but without FilesInterceptor and @Body()
+   * Access: Admins only
+   */
+  // @Patch('test-update/:id')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ADMIN)
+  // @UseInterceptors(FileInterceptor('thumbnail'))
+  // testUpdate(
+  //   @Param('id') id: string,
+  //   @UploadedFile() thumbnail?: Express.Multer.File,
+  // ) {
+  //   console.log(`[DEBUG] Simplified test update - ID: ${id}`);
+  //   console.log(
+  //     `[DEBUG] Thumbnail:`,
+  //     thumbnail
+  //       ? {
+  //           name: thumbnail.originalname,
+  //           size: thumbnail.size,
+  //           mimetype: thumbnail.mimetype,
+  //         }
+  //       : null,
+  //   );
+  //   return { success: true, id, thumbnail };
+  // }
+
+  /**
+   * Test endpoint with both interceptors but no @Body()
+   * Access: Admins only
+   */
+  // @Patch('test-update2/:id')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ADMIN)
+  // @UseInterceptors(
+  //   FileInterceptor('thumbnail'),
+  //   FilesInterceptor('attachments', 10),
+  // )
+  // testUpdate2(
+  //   @Param('id') id: string,
+  //   @UploadedFile() thumbnail?: Express.Multer.File,
+  //   @UploadedFiles() attachments?: Express.Multer.File[],
+  // ) {
+  //   console.log(`[DEBUG] Test update2 - ID: ${id}`);
+  //   console.log(
+  //     `[DEBUG] Thumbnail:`,
+  //     thumbnail
+  //       ? {
+  //           name: thumbnail.originalname,
+  //           size: thumbnail.size,
+  //           mimetype: thumbnail.mimetype,
+  //         }
+  //       : null,
+  //   );
+  //   console.log(
+  //     `[DEBUG] Attachments:`,
+  //     attachments
+  //       ? attachments.map((a) => ({
+  //           name: a.originalname,
+  //           size: a.size,
+  //           mimetype: a.mimetype,
+  //         }))
+  //       : [],
+  //   );
+  //   return { success: true, id, thumbnail, attachments };
+  // }
 
   /**
    * Delete a book
