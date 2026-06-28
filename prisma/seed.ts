@@ -35,6 +35,24 @@ async function main() {
   });
   console.log('👤 Created admin user');
 
+  // Create admin user
+  const userPassword = await bcrypt.hash('user123', 10);
+  const user = await prisma.user.upsert({
+    where: { email: 'user@bookstore.com' },
+    update: {},
+    create: {
+      email: 'user@bookstore.com',
+      password: userPassword,
+      firstName: 'User',
+      lastName: 'G',
+      role: Role.USER,
+      provider: Provider.EMAIL,
+      status: UserStatus.ACTIVE,
+      emailVerified: true,
+    },
+  });
+  console.log('👤 Created admin user');
+
   // Create sample publication
   const publication = await prisma.publication.upsert({
     where: { slug: 'penguin-random-house' },
