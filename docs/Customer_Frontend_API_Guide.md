@@ -2,7 +2,7 @@
 
 This document provides a complete reference for all APIs available to customer-facing frontend applications. It includes authentication, book browsing, cart management, wishlist, checkout, and user profile management.
 
-## Table of Contents
+## Table of Contents   
 1. [Base URL & Authentication](#base-url--authentication)
 2. [Auth APIs](#auth-apis)
 3. [Book APIs](#book-apis)
