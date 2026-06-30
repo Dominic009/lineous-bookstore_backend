@@ -51,7 +51,7 @@ async function main() {
       emailVerified: true,
     },
   });
-  console.log('👤 Created admin user');
+  console.log('👤 Created user');
 
   // Create sample publication
   const publication = await prisma.publication.upsert({
