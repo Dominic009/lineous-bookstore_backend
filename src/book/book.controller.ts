@@ -86,6 +86,15 @@ export class BookController {
   }
 
   /**
+   * Get books in tree structure: publications > subjects > books
+   * Access: Public
+   */
+  @Get('tree')
+  getTree() {
+    return this.bookService.getTree();
+  }
+
+  /**
    * Get a single book by ID
    * Access: Public (returns PUBLISHED only) or Admin (returns any status)
    */

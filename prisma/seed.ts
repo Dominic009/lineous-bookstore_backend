@@ -62,6 +62,7 @@ async function main() {
       slug: 'penguin-random-house',
       description: "World's largest trade book publisher",
       status: BookStatus.PUBLISHED,
+      isActive: true,
     },
   });
   console.log('🏢 Created publication');
@@ -74,6 +75,8 @@ async function main() {
       name: 'Fiction',
       slug: 'fiction',
       description: 'Fiction books and novels',
+      publicationId: publication.id,
+      isActive: true,
     },
   });
   console.log('📚 Created subject');

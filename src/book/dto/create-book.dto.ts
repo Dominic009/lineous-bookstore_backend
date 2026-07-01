@@ -79,11 +79,11 @@ export class CreateBookDto {
   @IsString()
   thumbnail?: string;
 
-  @IsOptional()
   @IsString()
-  publicationId?: string;
+  @IsNotEmpty()
+  publicationId!: string;
 
-  @IsOptional()
   @IsString()
-  subjectId?: string;
+  @IsNotEmpty()
+  subjectId!: string;
 }

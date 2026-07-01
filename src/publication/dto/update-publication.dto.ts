@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 import { BookStatus } from '@prisma/client';
 
 export class UpdatePublicationDto {
@@ -21,4 +21,8 @@ export class UpdatePublicationDto {
   @IsEnum(BookStatus)
   @IsOptional()
   status?: BookStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

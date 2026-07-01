@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+} from 'class-validator';
 import { BookStatus } from '@prisma/client';
 
 export class CreatePublicationDto {
@@ -23,4 +29,8 @@ export class CreatePublicationDto {
   @IsEnum(BookStatus)
   @IsOptional()
   status?: BookStatus = BookStatus.PUBLISHED;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean = true;
 }

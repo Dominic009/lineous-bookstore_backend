@@ -57,6 +57,27 @@ export class BookService {
       }
     }
 
+    // Validate publication exists
+    const publication = await this.prisma.publication.findUnique({
+      where: { id: dto.publicationId },
+    });
+    if (!publication) {
+      throw new NotFoundException('Publication not found');
+    }
+
+    // Validate subject exists and belongs to the publication
+    const subject = await this.prisma.subject.findUnique({
+      where: { id: dto.subjectId },
+    });
+    if (!subject) {
+      throw new NotFoundException('Subject not found');
+    }
+    if (subject.publicationId && subject.publicationId !== dto.publicationId) {
+      throw new ConflictException(
+        'Subject does not belong to the selected publication',
+      );
+    }
+
     // Handle thumbnail upload
     let thumbnailUrl: string | undefined;
     let thumbnailPublicId: string | undefined;
@@ -410,5 +431,122 @@ export class BookService {
       status: 'success',
       data: null,
     };
+  }
+
+  /**
+   * Get books in tree structure: publications > subjects > books
+   * Security: Public (returns only active, published books)
+   */
+  async getTree() {
+    // Get all active publications
+    const publications = await this.prisma.publication.findMany({
+      where: { deletedAt: null, isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const result: {
+      publication: {
+        id: string;
+        name: string;
+        slug: string;
+        isActive: boolean;
+      };
+      subjects: {
+        subject: {
+          id: string;
+          name: string;
+          slug: string;
+          isActive: boolean;
+        };
+        books: {
+          id: string;
+          title: string;
+          slug: string;
+          price: number;
+          thumbnail: string | null;
+        }[];
+      }[];
+    }[] = [];
+
+    for (const pub of publications) {
+      // Get all active subjects for this publication
+      const subjects = await this.prisma.subject.findMany({
+        where: {
+          deletedAt: null,
+          isActive: true,
+          OR: [{ publicationId: pub.id }, { publicationId: null }],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const subjectsWithBooks: {
+        subject: {
+          id: string;
+          name: string;
+          slug: string;
+          isActive: boolean;
+        };
+        books: {
+          id: string;
+          title: string;
+          slug: string;
+          price: number;
+          thumbnail: string | null;
+        }[];
+      }[] = [];
+
+      for (const subject of subjects) {
+        // Get all published books for this subject and publication
+        const books = await this.prisma.book.findMany({
+          where: {
+            deletedAt: null,
+            status: BookStatus.PUBLISHED,
+            publicationId: pub.id,
+            subjectId: subject.id,
+          },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            price: true,
+            thumbnail: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (books.length > 0) {
+          const mappedBooks = books.map((book) => ({
+            id: book.id,
+            title: book.title,
+            slug: book.slug,
+            price: book.price.toNumber(),
+            thumbnail: book.thumbnail,
+          }));
+          subjectsWithBooks.push({
+            subject: {
+              id: subject.id,
+              name: subject.name,
+              slug: subject.slug,
+              isActive: subject.isActive,
+            },
+            books: mappedBooks,
+          });
+        }
+      }
+
+      if (subjectsWithBooks.length > 0) {
+        result.push({
+          publication: {
+            id: pub.id,
+            name: pub.name,
+            slug: pub.slug,
+            isActive: pub.isActive,
+          },
+          subjects: subjectsWithBooks,
+        });
+      }
+    }
+
+    return result;
   }
 }

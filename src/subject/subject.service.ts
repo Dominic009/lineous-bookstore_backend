@@ -41,11 +41,23 @@ export class SubjectService {
       throw new ConflictException('Subject with this slug already exists');
     }
 
+    // Validate publication exists if provided
+    if (dto.publicationId) {
+      const publication = await this.prisma.publication.findUnique({
+        where: { id: dto.publicationId },
+      });
+      if (!publication) {
+        throw new NotFoundException('Publication not found');
+      }
+    }
+
     const subject = await this.prisma.subject.create({
       data: {
         name: dto.name,
         slug: dto.slug,
         description: dto.description,
+        publicationId: dto.publicationId,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
       },
     });
 
@@ -60,12 +72,22 @@ export class SubjectService {
    * Get all subjects
    * Security: Public
    */
-  async findAll(requestingUserRole?: Role): Promise<{
+  async findAll(
+    requestingUserRole?: Role,
+    publicationId?: string,
+  ): Promise<{
     message: string;
     status: string;
     data: Subject[];
   }> {
-    const where = requestingUserRole === Role.ADMIN ? {} : { deletedAt: null };
+    const where: Record<string, unknown> =
+      requestingUserRole === Role.ADMIN
+        ? {}
+        : { deletedAt: null, isActive: true };
+
+    if (publicationId) {
+      where.publicationId = publicationId;
+    }
 
     const subjects = await this.prisma.subject.findMany({
       where,
@@ -148,12 +170,24 @@ export class SubjectService {
       }
     }
 
+    // Validate publication exists if provided
+    if (dto.publicationId) {
+      const publication = await this.prisma.publication.findUnique({
+        where: { id: dto.publicationId },
+      });
+      if (!publication) {
+        throw new NotFoundException('Publication not found');
+      }
+    }
+
     const subject = await this.prisma.subject.update({
       where: { id },
       data: {
         name: dto.name,
         slug: dto.slug,
         description: dto.description,
+        publicationId: dto.publicationId,
+        isActive: dto.isActive,
       },
     });
 

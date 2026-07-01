@@ -43,27 +43,33 @@ model Publication {
   description String?
   logo        String?
   status      BookStatus @default(PUBLISHED)
+  isActive    Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
   books       Book[]
+  subjects    Subject[]
 
   @@index([slug])
   @@index([name])
 }
 
 model Subject {
-  id          String    @id @default(uuid())
-  name        String
-  slug        String    @unique
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  books       Book[]
+  id            String       @id @default(uuid())
+  name          String
+  slug          String       @unique
+  description   String?
+  publicationId String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+  books         Book[]
+  publication   Publication? @relation(fields: [publicationId], references: [id])
 
   @@index([slug])
   @@index([name])
+  @@index([publicationId])
 }
 
 model Book {
@@ -80,15 +86,15 @@ model Book {
   language         String?
   status           BookStatus       @default(DRAFT)
   thumbnail        String?
-  publicationId    String?
-  subjectId        String?
+  publicationId    String
+  subjectId        String
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
   stockAmount      Int?
   stock            Boolean          @default(false)
-  publication      Publication?     @relation(fields: [publicationId], references: [id])
-  subject          Subject?         @relation(fields: [subjectId], references: [id])
+  publication      Publication      @relation(fields: [publicationId], references: [id])
+  subject          Subject          @relation(fields: [subjectId], references: [id])
   attachments      BookAttachment[]
   categories       BookCategory[]
   parts            BookPart[]
@@ -101,6 +107,8 @@ model Book {
   @@index([slug])
   @@index([isbn])
   @@index([title])
+  @@index([publicationId])
+  @@index([subjectId])
 }
 
 model BookPart {

@@ -50,6 +50,7 @@ export class PublicationService {
         description: dto.description,
         logo: dto.logo,
         status: dto.status || BookStatus.PUBLISHED,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
       },
     });
 
@@ -69,7 +70,10 @@ export class PublicationService {
     status: string;
     data: Publication[];
   }> {
-    const where = requestingUserRole === Role.ADMIN ? {} : { deletedAt: null };
+    const where =
+      requestingUserRole === Role.ADMIN
+        ? {}
+        : { deletedAt: null, isActive: true };
 
     const publications = await this.prisma.publication.findMany({
       where,
@@ -162,6 +166,7 @@ export class PublicationService {
         description: dto.description,
         logo: dto.logo,
         status: dto.status,
+        isActive: dto.isActive,
       },
     });
 
