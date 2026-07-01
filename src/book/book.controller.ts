@@ -11,7 +11,6 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
-  UploadedFiles,
 } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -21,7 +20,7 @@ import { OptionalJwtAuthGuard } from 'src/auth/optional-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 /**
@@ -54,27 +53,24 @@ export class BookController {
   ) {}
 
   /**
-   * Create a new book with optional thumbnail and attachments
+   * Create a new book with optional thumbnail
    * Access: Admins only
+   * Note: Attachments are managed via separate endpoints (POST /book-attachments, DELETE /upload/book-attachment/:id)
    */
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  @UseInterceptors(
-    FileInterceptor('thumbnail'),
-    FilesInterceptor('attachments', 10),
-  )
+  @UseInterceptors(FileInterceptor('thumbnail'))
   async create(
     @Body() dto: CreateBookDto,
     @Request() req: AuthenticatedRequest,
     @UploadedFile() thumbnail?: Express.Multer.File,
-    @UploadedFiles() attachments?: Express.Multer.File[],
   ) {
     return this.bookService.create(
       dto,
       req.user.role,
       thumbnail,
-      attachments,
+      undefined,
       this.cloudinaryService,
     );
   }
