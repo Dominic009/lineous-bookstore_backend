@@ -9,21 +9,21 @@ export class CreateAddressDto {
   @IsNotEmpty()
   phone!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  country!: string;
+  country?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  division!: string;
+  division?: string;
 
   @IsString()
   @IsNotEmpty()
   district!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  area!: string;
+  area?: string;
 
   @IsString()
   @IsNotEmpty()

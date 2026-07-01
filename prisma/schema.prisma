@@ -247,10 +247,10 @@ model Address {
   userId      String
   name        String
   phone       String
-  country     String
-  division    String
+  country     String?
+  division    String?
   district    String
-  area        String
+  area        String?
   addressLine String
   postalCode  String?
   isDefault   Boolean   @default(false)
