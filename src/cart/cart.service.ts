@@ -2,14 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import {
-  Injectable,
-  NotFoundException,
-  //   ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
-import { Cart, CartItem, BookStatus } from '@prisma/client';
+import { Cart, CartItem, BookStatus, BookPaper } from '@prisma/client';
 
 @Injectable()
 export class CartService {
@@ -30,6 +26,7 @@ export class CartService {
         cartItems: {
           include: {
             book: true,
+            paper: true,
           },
         },
       },
@@ -42,6 +39,7 @@ export class CartService {
           cartItems: {
             include: {
               book: true,
+              paper: true,
             },
           },
         },
@@ -76,6 +74,27 @@ export class CartService {
       throw new NotFoundException('Book not found or not available');
     }
 
+    // Validate paper if provided
+    let paper: BookPaper | null = null;
+    if (dto.paperId) {
+      paper = await this.prisma.bookPaper.findUnique({
+        where: {
+          id: dto.paperId,
+          bookId: dto.bookId,
+          deletedAt: null,
+          status: BookStatus.PUBLISHED,
+        },
+      });
+
+      if (!paper) {
+        throw new NotFoundException('Paper not found or not available');
+      }
+
+      if (paper.stock < dto.quantity) {
+        throw new ConflictException('Not enough stock available');
+      }
+    }
+
     // Get or create cart
     let cart = await this.prisma.cart.findUnique({
       where: { userId },
@@ -87,9 +106,13 @@ export class CartService {
       });
     }
 
-    // Check if item already exists in cart
+    // Check if item already exists in cart (match paper too)
     const existingItem = await this.prisma.cartItem.findFirst({
-      where: { cartId: cart.id, bookId: dto.bookId },
+      where: {
+        cartId: cart.id,
+        bookId: dto.bookId,
+        ...(dto.paperId && { paperId: dto.paperId }),
+      },
     });
 
     if (existingItem) {
@@ -104,6 +127,7 @@ export class CartService {
         data: {
           cartId: cart.id,
           bookId: dto.bookId,
+          paperId: dto.paperId,
           quantity: dto.quantity,
         },
       });

@@ -9,13 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import {
-  Order,
-  //   OrderItem,
-  Role,
-  OrderStatus,
-  PaymentStatus,
-} from '@prisma/client';
+import { Order, Role, OrderStatus, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class OrderService {
@@ -40,6 +34,7 @@ export class OrderService {
         cartItems: {
           include: {
             book: true,
+            paper: true,
           },
         },
       },
@@ -58,11 +53,54 @@ export class OrderService {
       throw new NotFoundException('Address not found');
     }
 
-    // Calculate totals
+    // Calculate totals using paper prices
     let subtotal = 0;
+    const orderItemsData: any[] = [];
+
     for (const item of cart.cartItems) {
-      const price = item.book.discountPrice || item.book.price;
-      subtotal += Number(price) * item.quantity;
+      // Get effective price from paper or book
+      let unitPrice: number;
+
+      if (item.paper) {
+        const now = new Date();
+        const paper = item.paper;
+
+        if (
+          paper.discountPrice &&
+          paper.discountStartDate &&
+          paper.discountEndDate &&
+          now >= paper.discountStartDate &&
+          now <= paper.discountEndDate
+        ) {
+          unitPrice = Number(paper.discountPrice);
+        } else {
+          unitPrice = Number(paper.price);
+        }
+      } else {
+        // Fallback to book price (for backward compatibility or books without papers)
+        const book = item.book as any;
+        unitPrice = book.discountPrice
+          ? Number(book.discountPrice)
+          : Number(book.price);
+      }
+
+      const itemSubtotal = unitPrice * item.quantity;
+      subtotal += itemSubtotal;
+
+      const orderItem: any = {
+        bookId: item.bookId,
+        bookTitle: item.book.title,
+        paperPrice: unitPrice,
+        quantity: item.quantity,
+        subtotal: itemSubtotal,
+      };
+
+      if (item.paperId) {
+        orderItem.paperId = item.paperId;
+        orderItem.paperName = item.paper?.name;
+      }
+
+      orderItemsData.push(orderItem);
     }
 
     const discount = dto.discount ?? 0;
@@ -87,15 +125,7 @@ export class OrderService {
         status: OrderStatus.PENDING,
         paymentStatus: PaymentStatus.PENDING,
         orderItems: {
-          create: cart.cartItems.map((item) => ({
-            bookId: item.bookId,
-            bookTitle: item.book.title,
-            bookPrice: item.book.discountPrice || item.book.price,
-            quantity: item.quantity,
-            subtotal:
-              Number(item.book.discountPrice || item.book.price) *
-              item.quantity,
-          })),
+          create: orderItemsData,
         },
       },
       include: {
@@ -163,7 +193,11 @@ export class OrderService {
     const order = await this.prisma.order.findUnique({
       where,
       include: {
-        orderItems: true,
+        orderItems: {
+          include: {
+            paper: true,
+          },
+        },
         payments: true,
       },
     });

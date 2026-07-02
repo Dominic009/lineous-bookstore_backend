@@ -90,20 +90,34 @@ async function main() {
       slug: 'sample-book',
       shortDescription: 'A sample book for testing',
       description: 'This is a detailed description of the sample book.',
-      isbn: '978-0-123456-78-9',
-      price: 29.99,
-      discountPrice: 24.99,
       publicationDate: new Date('2024-01-01'),
       edition: '1st Edition',
       language: 'English',
-      stock: true,
-      stockAmount: 100,
       status: BookStatus.PUBLISHED,
       publicationId: publication.id,
       subjectId: subject.id,
     },
   });
   console.log('📖 Created book');
+
+  // Create sample book paper
+  const bookPaper = await prisma.bookPaper.upsert({
+    where: { isbn: '978-0-123456-78-9' },
+    update: {},
+    create: {
+      bookId: book.id,
+      code: 'A',
+      name: 'Standard Edition',
+      price: 29.99,
+      discountPrice: 24.99,
+      stock: 100,
+      isbn: '978-0-123456-78-9',
+      pageCount: 250,
+      isDefault: true,
+      status: BookStatus.PUBLISHED,
+    },
+  });
+  console.log('📄 Created book paper');
 
   // Create sample banner
   const banner = await prisma.banner.create({

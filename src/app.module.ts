@@ -7,7 +7,7 @@ import { UserModule } from './user/user.module';
 import { PublicationModule } from './publication/publication.module';
 import { SubjectModule } from './subject/subject.module';
 import { BookModule } from './book/book.module';
-import { BookPartModule } from './book-part/book-part.module';
+import { BookPaperModule } from './book-paper/book-paper.module';
 import { BookAttachmentModule } from './book-attachment/book-attachment.module';
 import { ReviewModule } from './review/review.module';
 import { TeacherModule } from './teacher/teacher.module';
@@ -30,7 +30,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     PublicationModule,
     SubjectModule,
     BookModule,
-    BookPartModule,
+    BookPaperModule,
     BookAttachmentModule,
     ReviewModule,
     TeacherModule,

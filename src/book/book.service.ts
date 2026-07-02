@@ -46,17 +46,6 @@ export class BookService {
       throw new ConflictException('Book with this slug already exists');
     }
 
-    // Check if ISBN already exists
-    if (dto.isbn) {
-      const isbnExists = await this.prisma.book.findUnique({
-        where: { isbn: dto.isbn },
-      });
-
-      if (isbnExists) {
-        throw new ConflictException('Book with this ISBN already exists');
-      }
-    }
-
     // Validate publication exists
     const publication = await this.prisma.publication.findUnique({
       where: { id: dto.publicationId },
@@ -91,23 +80,18 @@ export class BookService {
       thumbnailPublicId = result.publicId;
     }
 
-    // Create the book
+    // Create the book (without price/stock/isbn - those go to papers)
     const book = await this.prisma.book.create({
       data: {
         title: dto.title,
         slug: dto.slug,
         shortDescription: dto.shortDescription,
         description: dto.description,
-        isbn: dto.isbn,
-        price: dto.price,
-        discountPrice: dto.discountPrice,
         publicationDate: dto.publicationDate
           ? new Date(dto.publicationDate)
           : undefined,
         edition: dto.edition,
         language: dto.language,
-        stock: dto.stock ?? false,
-        stockAmount: dto.stockAmount,
         status: dto.status || BookStatus.DRAFT,
         thumbnail: thumbnailUrl || dto.thumbnail,
         publicationId: dto.publicationId,
@@ -178,18 +162,26 @@ export class BookService {
       include: {
         publication: true,
         subject: true,
+        papers: {
+          where: { deletedAt: null },
+        },
         attachments: true,
         reviews: true,
       },
     });
 
+    const booksWithPriceRange = books.map((book) => ({
+      ...book,
+      priceRange: this.calculatePriceRange(book.papers),
+    }));
+
     return {
       message:
-        books.length > 0
+        booksWithPriceRange.length > 0
           ? BookSuccessMessages.RETRIEVED_ALL
           : BookSuccessMessages.NOT_FOUND,
       status: 'success',
-      data: books,
+      data: booksWithPriceRange,
     };
   }
 
@@ -215,7 +207,7 @@ export class BookService {
       include: {
         publication: true,
         subject: true,
-        parts: true,
+        papers: true,
         attachments: true,
         reviews: true,
       },
@@ -248,29 +240,6 @@ export class BookService {
     status: string;
     data: Book;
   }> {
-    // console.log(`[DEBUG] Book update service - ID: ${id}`);
-    // console.log(`[DEBUG] DTO:`, JSON.stringify(dto, null, 2));
-    // console.log(
-    //   `[DEBUG] Thumbnail:`,
-    //   thumbnail
-    //     ? {
-    //         name: thumbnail.originalname,
-    //         size: thumbnail.size,
-    //         mimetype: thumbnail.mimetype,
-    //       }
-    //     : null,
-    // );
-    // console.log(
-    //   `[DEBUG] Attachments:`,
-    //   attachments
-    //     ? attachments.map((a) => ({
-    //         name: a.originalname,
-    //         size: a.size,
-    //         mimetype: a.mimetype,
-    //       }))
-    //     : [],
-    // );
-
     if (requestingUserRole !== Role.ADMIN) {
       throw new ForbiddenException('Only administrators can update books');
     }
@@ -291,17 +260,6 @@ export class BookService {
 
       if (slugExists) {
         throw new ConflictException('Slug already in use');
-      }
-    }
-
-    // If ISBN is being changed, check if it's already taken
-    if (dto.isbn && dto.isbn !== existingBook.isbn) {
-      const isbnExists = await this.prisma.book.findUnique({
-        where: { isbn: dto.isbn },
-      });
-
-      if (isbnExists) {
-        throw new ConflictException('ISBN already in use');
       }
     }
 
@@ -326,16 +284,10 @@ export class BookService {
     if (dto.shortDescription !== undefined)
       updateData.shortDescription = dto.shortDescription;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.isbn !== undefined) updateData.isbn = dto.isbn;
-    if (dto.price !== undefined) updateData.price = dto.price;
-    if (dto.discountPrice !== undefined)
-      updateData.discountPrice = dto.discountPrice;
     if (dto.publicationDate !== undefined)
       updateData.publicationDate = new Date(dto.publicationDate);
     if (dto.edition !== undefined) updateData.edition = dto.edition;
     if (dto.language !== undefined) updateData.language = dto.language;
-    if (dto.stock !== undefined) updateData.stock = dto.stock;
-    if (dto.stockAmount !== undefined) updateData.stockAmount = dto.stockAmount;
     if (dto.status !== undefined) updateData.status = dto.status;
     // If new thumbnail uploaded, use it; otherwise use the provided URL
     if (thumbnailUrl) {
@@ -462,7 +414,7 @@ export class BookService {
           id: string;
           title: string;
           slug: string;
-          price: number;
+          priceRange: { min: number; max: number; display: string } | null;
           thumbnail: string | null;
         }[];
       }[];
@@ -490,7 +442,7 @@ export class BookService {
           id: string;
           title: string;
           slug: string;
-          price: number;
+          priceRange: { min: number; max: number; display: string } | null;
           thumbnail: string | null;
         }[];
       }[] = [];
@@ -504,12 +456,10 @@ export class BookService {
             publicationId: pub.id,
             subjectId: subject.id,
           },
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            price: true,
-            thumbnail: true,
+          include: {
+            papers: {
+              where: { deletedAt: null },
+            },
           },
           orderBy: { createdAt: 'desc' },
         });
@@ -519,7 +469,7 @@ export class BookService {
             id: book.id,
             title: book.title,
             slug: book.slug,
-            price: book.price.toNumber(),
+            priceRange: this.calculatePriceRange(book.papers),
             thumbnail: book.thumbnail,
           }));
           subjectsWithBooks.push({
@@ -548,5 +498,39 @@ export class BookService {
     }
 
     return result;
+  }
+
+  private calculatePriceRange(papers: any[]): {
+    min: number;
+    max: number;
+    display: string;
+  } | null {
+    if (!papers || papers.length === 0) return null;
+
+    const now = new Date();
+    const effectivePrices = papers.map((paper) => {
+      const basePrice = Number(paper.price);
+      if (
+        paper.discountPrice &&
+        paper.discountStartDate &&
+        paper.discountEndDate &&
+        now >= paper.discountStartDate &&
+        now <= paper.discountEndDate
+      ) {
+        return Number(paper.discountPrice);
+      }
+      return basePrice;
+    });
+
+    if (effectivePrices.length === 0) return null;
+
+    const min = Math.min(...effectivePrices);
+    const max = Math.max(...effectivePrices);
+
+    return {
+      min,
+      max,
+      display: min === max ? `৳${min}` : `From ৳${min}`,
+    };
   }
 }

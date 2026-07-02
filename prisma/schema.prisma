@@ -78,9 +78,6 @@ model Book {
   slug             String           @unique
   shortDescription String?
   description      String?
-  isbn             String?          @unique
-  price            Decimal          @db.Decimal(10, 2)
-  discountPrice    Decimal?         @db.Decimal(10, 2)
   publicationDate  DateTime?
   edition          String?
   language         String?
@@ -91,13 +88,11 @@ model Book {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
-  stockAmount      Int?
-  stock            Boolean          @default(false)
   publication      Publication      @relation(fields: [publicationId], references: [id])
   subject          Subject          @relation(fields: [subjectId], references: [id])
   attachments      BookAttachment[]
   categories       BookCategory[]
-  parts            BookPart[]
+  papers           BookPaper[]
   cartItems        CartItem[]
   orderItems       OrderItem[]
   reviews          Review[]
@@ -105,25 +100,36 @@ model Book {
   wishlists        Wishlist[]
 
   @@index([slug])
-  @@index([isbn])
   @@index([title])
   @@index([publicationId])
   @@index([subjectId])
 }
 
-model BookPart {
-  id          String    @id @default(uuid())
-  bookId      String
-  title       String
-  partNumber  Int
-  description String?
-  price       Decimal?  @db.Decimal(10, 2)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  book        Book      @relation(fields: [bookId], references: [id])
+model BookPaper {
+  id                String      @id @default(uuid())
+  bookId            String
+  code              String?
+  name              String
+  price             Decimal     @db.Decimal(10, 2)
+  discountPrice     Decimal?    @db.Decimal(10, 2)
+  discountStartDate DateTime?
+  discountEndDate   DateTime?
+  stock             Int         @default(0)
+  isbn              String?     @unique
+  pageCount         Int?
+  thumbnail         String?
+  sortOrder         Int         @default(0)
+  isDefault         Boolean     @default(false)
+  status            BookStatus  @default(PUBLISHED)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  deletedAt         DateTime?
+  book              Book        @relation(fields: [bookId], references: [id])
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
 
   @@index([bookId])
+  @@index([isbn])
 }
 
 model BookAttachment {
@@ -275,15 +281,18 @@ model Cart {
 }
 
 model CartItem {
-  id       String @id @default(uuid())
+  id       String     @id @default(uuid())
   cartId   String
   bookId   String
-  quantity Int    @default(1)
-  book     Book   @relation(fields: [bookId], references: [id])
-  cart     Cart   @relation(fields: [cartId], references: [id])
+  paperId  String?
+  quantity Int        @default(1)
+  book     Book       @relation(fields: [bookId], references: [id])
+  cart     Cart       @relation(fields: [cartId], references: [id])
+  paper    BookPaper? @relation(fields: [paperId], references: [id])
 
   @@index([cartId])
   @@index([bookId])
+  @@index([paperId])
 }
 
 model Wishlist {
@@ -327,18 +336,22 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  bookId    String
-  bookTitle String
-  bookPrice Decimal @db.Decimal(10, 2)
-  quantity  Int
-  subtotal  Decimal @db.Decimal(10, 2)
-  book      Book    @relation(fields: [bookId], references: [id])
-  order     Order   @relation(fields: [orderId], references: [id])
+  id         String   @id @default(uuid())
+  orderId    String
+  bookId     String
+  paperId    String?
+  bookTitle  String
+  paperName  String?
+  paperPrice Decimal  @db.Decimal(10, 2)
+  quantity   Int
+  subtotal   Decimal  @db.Decimal(10, 2)
+  book       Book     @relation(fields: [bookId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+  paper      BookPaper? @relation(fields: [paperId], references: [id])
 
   @@index([orderId])
   @@index([bookId])
+  @@index([paperId])
 }
 
 model Payment {
