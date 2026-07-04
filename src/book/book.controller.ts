@@ -13,6 +13,7 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -83,8 +84,11 @@ export class BookController {
    */
   @Get()
   @UseGuards(OptionalJwtAuthGuard, RolesGuard)
-  findAll(@Request() req: RequestWithUser) {
-    return this.bookService.findAll(req?.user?.role);
+  findAll(
+    @Request() req: RequestWithUser,
+    @Query('subjectId') subjectId?: string,
+  ) {
+    return this.bookService.findAll(req?.user?.role, subjectId);
   }
 
   /**

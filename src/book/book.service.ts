@@ -146,15 +146,22 @@ export class BookService {
    * Get all books
    * Security: Public
    */
-  async findAll(requestingUserRole?: Role): Promise<{
+  async findAll(
+    requestingUserRole?: Role,
+    subjectId?: string,
+  ): Promise<{
     message: string;
     status: string;
     data: Book[];
   }> {
-    const where =
+    const where: any =
       requestingUserRole === Role.ADMIN
         ? {}
         : { deletedAt: null, status: BookStatus.PUBLISHED };
+
+    if (subjectId) {
+      where.subjectId = subjectId;
+    }
 
     const books = await this.prisma.book.findMany({
       where,
@@ -195,7 +202,9 @@ export class BookService {
   ): Promise<{
     message: string;
     status: string;
-    data: Book;
+    data: Book & {
+      priceRange: { min: number; max: number; display: string } | null;
+    };
   }> {
     const where =
       requestingUserRole === Role.ADMIN
@@ -217,10 +226,17 @@ export class BookService {
       throw new NotFoundException('Book not found');
     }
 
+    const bookWithPriceRange = {
+      ...book,
+      priceRange: this.calculatePriceRange(book.papers),
+    } as Book & {
+      priceRange: { min: number; max: number; display: string } | null;
+    };
+
     return {
       message: BookSuccessMessages.RETRIEVED,
       status: 'success',
-      data: book,
+      data: bookWithPriceRange,
     };
   }
 

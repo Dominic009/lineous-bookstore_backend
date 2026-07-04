@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { Cart, CartItem, BookStatus, BookPaper } from '@prisma/client';
@@ -88,10 +88,6 @@ export class CartService {
 
       if (!paper) {
         throw new NotFoundException('Paper not found or not available');
-      }
-
-      if (paper.stock < dto.quantity) {
-        throw new ConflictException('Not enough stock available');
       }
     }
 
