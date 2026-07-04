@@ -12,14 +12,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookPaperDto } from './dto/create-book-paper.dto';
 import { UpdateBookPaperDto } from './dto/update-book-paper.dto';
 import { BookPaper, Role, BookStatus } from '@prisma/client';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class BookPaperService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinaryService?: CloudinaryService,
+  ) {}
 
   async create(
     dto: CreateBookPaperDto,
     requestingUserRole: Role,
+    thumbnail?: Express.Multer.File,
   ): Promise<{
     message: string;
     status: string;
@@ -55,6 +60,16 @@ export class BookPaperService {
       });
     }
 
+    // Handle thumbnail upload
+    let thumbnailUrl: string | undefined = dto.thumbnail;
+    if (thumbnail && this.cloudinaryService) {
+      const result = await this.cloudinaryService.uploadFile(
+        thumbnail,
+        'bookstore/thumbnails',
+      );
+      thumbnailUrl = result.url;
+    }
+
     const paper = await this.prisma.bookPaper.create({
       data: {
         bookId: dto.bookId,
@@ -71,7 +86,7 @@ export class BookPaperService {
         stock: dto.stock ?? 0,
         isbn: dto.isbn,
         pageCount: dto.pageCount,
-        thumbnail: dto.thumbnail,
+        thumbnail: thumbnailUrl,
         sortOrder: dto.sortOrder ?? 0,
         isDefault: dto.isDefault ?? false,
         status: dto.status || BookStatus.PUBLISHED,
@@ -148,6 +163,7 @@ export class BookPaperService {
     id: string,
     dto: UpdateBookPaperDto,
     requestingUserRole: Role,
+    thumbnail?: Express.Multer.File,
   ): Promise<{
     message: string;
     status: string;
@@ -180,6 +196,16 @@ export class BookPaperService {
       });
     }
 
+    // Handle thumbnail upload
+    let thumbnailUrl: string | undefined = dto.thumbnail;
+    if (thumbnail && this.cloudinaryService) {
+      const result = await this.cloudinaryService.uploadFile(
+        thumbnail,
+        'bookstore/thumbnails',
+      );
+      thumbnailUrl = result.url;
+    }
+
     const paper = await this.prisma.bookPaper.update({
       where: { id },
       data: {
@@ -196,7 +222,7 @@ export class BookPaperService {
         stock: dto.stock,
         isbn: dto.isbn,
         pageCount: dto.pageCount,
-        thumbnail: dto.thumbnail,
+        thumbnail: thumbnailUrl,
         sortOrder: dto.sortOrder,
         isDefault: dto.isDefault,
         status: dto.status,

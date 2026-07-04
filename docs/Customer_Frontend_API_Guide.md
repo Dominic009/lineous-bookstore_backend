@@ -1,1401 +1,452 @@
-# Customer Frontend API Implementation Guide
+# 📱 Customer Frontend API Implementation Guide
 
-This document provides a complete reference for all APIs available to customer-facing frontend applications. It includes authentication, book browsing, cart management, wishlist, checkout, and user profile management.
+## 📋 Overview
 
-## Table of Contents   
-1. [Base URL & Authentication](#base-url--authentication)
-2. [Auth APIs](#auth-apis)
-3. [Book APIs](#book-apis)
-4. [Category APIs](#category-apis)
-5. [Publication APIs](#publication-apis)
-6. [Subject APIs](#subject-apis)
-7. [Banner APIs](#banner-apis)
-8. [Teacher APIs](#teacher-apis)
-9. [Review APIs](#review-apis)
-10. [Book Part APIs](#book-part-apis)
-11. [Cart APIs](#cart-apis)
-12. [Wishlist APIs](#wishlist-apis)
-13. [Address APIs](#address-apis)
-14. [Order APIs](#order-apis)
-15. [Setting APIs](#setting-apis)
-16. [Error Handling](#error-handling)
-17. [Rules & Best Practices](#rules--best-practices)
+This document provides a complete guide for updating the **customer-facing frontend** to work with the new backend API structure. The backend has been migrated from a single-`Book` pricing model to a **parent-child model** where:
+
+- **`Book`** contains shared information (title, description, publication, subject, thumbnail, etc.)
+- **`BookPaper`** contains variant-specific pricing, inventory, and attributes (Paper A, MCQ Paper, English Version, etc.)
+
+The frontend must be updated to reflect these changes across all user-facing flows: product listing, product detail, cart, and checkout.
 
 ---
 
-## Base URL & Authentication
+## 🔴 Critical Concept: Papers are Variants
 
-### Base URL
-```
-http://localhost:3000/api
-```
+A single book (e.g., "Physics for Class 11") can now have multiple **papers** (e.g., "Paper A", "Paper B", "MCQ Paper"). Each paper has its own:
 
-### Authentication
-Most customer APIs require a JWT token obtained from login or signup. Include the token in the `Authorization` header:
+- Price and discount
+- Stock quantity
+- ISBN and page count
+- Thumbnail (optional, overrides book thumbnail)
 
-```
-Authorization: Bearer {accessToken}
-```
-
-### Token Storage
-Store the `accessToken` in `localStorage` or a secure HTTP-only cookie. The token payload contains:
-```json
-{
-  "sub": "user-uuid",
-  "role": "USER"
-}
-```
+**The customer must select a specific paper before adding to cart.**
 
 ---
 
-## Auth APIs
+## 1️⃣ Product Listing Page (`GET /books` and `GET /books/tree`)
 
-### 1. Sign Up
-**Endpoint:** `POST /api/auth/signup`  
-**Authentication:** Not required  
-**Content-Type:** `application/json`
+### What Changed
 
-**Request Body:**
+| Field | Status | Notes |
+|-------|--------|-------|
+| `price` | ❌ **REMOVED** | No longer on Book model |
+| `discountPrice` | ❌ **REMOVED** | No longer on Book model |
+| `stock` | ❌ **REMOVED** | No longer on Book model |
+| `papers` | ✅ **NEW** | Array of `BookPaper` objects |
+| `priceRange` | ✅ **NEW** | `{ min, max, display }` — use this for listing |
+
+### Response Changes
+
+**Before:**
 ```json
 {
-  "email": "customer@example.com",
-  "password": "SecurePass123"
+  "id": "uuid",
+  "title": "Physics for Class 11",
+  "price": 300,
+  "discountPrice": 250,
+  "stock": 100,
+  "thumbnail": "https://..."
 }
 ```
 
-**Validation Rules:**
-- `email` must be a valid email format
-- `password` must be at least 8 characters
-- `password` must contain at least one uppercase letter, one lowercase letter, and one number
-
-**Success Response (201):**
+**After:**
 ```json
 {
-  "success": true,
-  "message": "User registered successfully",
-  "user": {
-    "id": "uuid",
-    "email": "customer@example.com"
-  }
-}
-```
-
-**Error Responses:**
-- `409 Conflict` — Email already exists
-
----
-
-### 2. Login
-**Endpoint:** `POST /api/auth/login`  
-**Authentication:** Not required  
-**Content-Type:** `application/json`
-
-**Request Body:**
-```json
-{
-  "email": "customer@example.com",
-  "password": "SecurePass123"
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "uuid",
-    "email": "customer@example.com",
-    "role": "USER"
-  }
-}
-```
-
-**Error Responses:**
-- `401 Unauthorized` — Invalid email or password
-
-**Frontend Usage:**
-```javascript
-const response = await fetch('/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password }),
-});
-
-const { accessToken, user } = await response.json();
-localStorage.setItem('accessToken', accessToken);
-```
-
----
-
-## Book APIs
-
-### 1. Get All Books
-**Endpoint:** `GET /api/books`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` books for non-authenticated users
-- Returns all books (including DRAFT, ARCHIVED) for admin users
-- Results ordered by `createdAt` descending
-- Does NOT include reviews in the response
-
-**Success Response (200):**
-```json
-{
-  "message": "Books retrieved successfully",
-  "status": "success",
-  "data": [
+  "id": "uuid",
+  "title": "Physics for Class 11",
+  "thumbnail": "https://...",
+  "priceRange": {
+    "min": 250,
+    "max": 400,
+    "display": "From ৳250"
+  },
+  "papers": [
     {
       "id": "uuid",
-      "title": "Book A",
-      "slug": "book-a",
-      "shortDescription": "A brief description",
-      "description": "Full description...",
-      "isbn": "978-3-16-148410-0",
-      "price": "250.00",
-      "discountPrice": "200.00",
-      "publicationDate": "2024-01-01",
-      "edition": "1st",
-      "language": "English",
-      "stock": true,
-      "stockAmount": 100,
-      "status": "PUBLISHED",
-      "thumbnail": "https://res.cloudinary.com/...",
-      "publicationId": "uuid",
-      "subjectId": "uuid",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z",
-      "publication": {
+      "code": "A",
+      "name": "Paper A",
+      "price": 300,
+      "effectivePrice": 250,
+      "isInStock": true
+    }
+  ]
+}
+```
+
+### Frontend Changes Needed
+
+1. **Replace `price` display with `priceRange.display`**
+   - If `priceRange` is `null`: show "Price not available"
+   - If `priceRange.display` is `"৳300"`: show single price
+   - If `priceRange.display` is `"From ৳250"`: show range with "From" prefix
+
+2. **Remove stock indicator from listing** — stock is now per-paper, not per-book
+
+3. **Add paper count badge** (optional): show number of available papers
+
+4. **Clicking a book should navigate to the paper selection page** (see Product Detail below)
+
+---
+
+## 2️⃣ Product Detail Page (`GET /books/:id`)
+
+### What Changed
+
+The book detail response now includes a `papers` array. The customer must select a paper before purchasing.
+
+### Response Example
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "title": "Physics for Class 11",
+    "description": "...",
+    "thumbnail": "https://...",
+    "papers": [
+      {
         "id": "uuid",
-        "name": "Pearson Education",
-        "slug": "pearson-education"
+        "code": "A",
+        "name": "Paper A",
+        "price": 300,
+        "discountPrice": 250,
+        "discountStartDate": "2025-01-01",
+        "discountEndDate": "2025-12-31",
+        "stock": 100,
+        "pageCount": 300,
+        "thumbnail": "https://...",
+        "sortOrder": 0,
+        "isDefault": true,
+        "status": "PUBLISHED",
+        "effectivePrice": 250,
+        "isInStock": true
       },
-      "subject": {
-        "id": "uuid",
-        "name": "Mathematics",
-        "slug": "mathematics"
-      },
-      "attachments": [
-        {
-          "id": "uuid",
-          "url": "https://res.cloudinary.com/...",
-          "type": "THUMBNAIL",
-          "sortOrder": 0
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Book by ID
-**Endpoint:** `GET /api/books/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` books for non-authenticated users
-- Returns any book for admin users
-- **Includes reviews** in the response
-- Returns `404 Not Found` if book does not exist or is not published (for non-admins)
-
-**Success Response (200):**
-```json
-{
-  "message": "Book retrieved successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "title": "Book A",
-    "slug": "book-a",
-    "shortDescription": "A brief description",
-    "description": "Full description...",
-    "isbn": "978-3-16-148410-0",
-    "price": "250.00",
-    "discountPrice": "200.00",
-    "publicationDate": "2024-01-01",
-    "edition": "1st",
-    "language": "English",
-    "stock": true,
-    "stockAmount": 100,
-    "status": "PUBLISHED",
-    "thumbnail": "https://res.cloudinary.com/...",
-    "publicationId": "uuid",
-    "subjectId": "uuid",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
-    "publication": { ... },
-    "subject": { ... },
-    "parts": [
       {
         "id": "uuid",
-        "title": "Chapter 1",
-        "partNumber": 1,
-        "description": "...",
-        "price": "50.00"
-      }
-    ],
-    "attachments": [ ... ],
-    "reviews": [
-      {
-        "id": "uuid",
-        "reviewerName": "John Doe",
-        "designation": "Professor",
-        "rating": 5,
-        "comment": "Excellent book!",
-        "displayOrder": 0,
-        "status": "PUBLISHED"
+        "code": "B",
+        "name": "Paper B",
+        "price": 350,
+        "discountPrice": null,
+        "stock": 50,
+        "isDefault": false,
+        "status": "PUBLISHED",
+        "effectivePrice": 350,
+        "isInStock": true
       }
     ]
   }
 }
 ```
 
----
+### Frontend Changes Needed
 
-## Category APIs
+1. **Show paper selection UI** (required before adding to cart):
+   - List all published papers with their names, prices, and stock status
+   - Highlight the `isDefault` paper (pre-select it)
+   - Show "Out of Stock" badge for papers where `isInStock: false`
+   - Show discount price and countdown if discount is active
 
-### 1. Get All Categories
-**Endpoint:** `GET /api/categories`  
-**Authentication:** Optional (public endpoint)
+2. **Price display logic:**
+   - Use `effectivePrice` for the selected paper
+   - If `discountPrice` is active (within date range), show strikethrough original price
+   - Show discount percentage: `Math.round((1 - effectivePrice / price) * 100)%`
 
-**Rules:**
-- Returns only non-deleted categories for non-authenticated users
-- Returns all categories for admin users
-- Results ordered by `name` ascending
+3. **Stock display:**
+   - Show "In Stock" / "Only X left" / "Out of Stock" based on `isInStock` and `stock`
+   - Disable "Add to Cart" button if selected paper is out of stock
 
-**Success Response (200):**
-```json
-{
-  "message": "Categories retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Science",
-      "slug": "science",
-      "parentId": null,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
+4. **Thumbnail:**
+   - Use paper's `thumbnail` if available, otherwise fall back to book's `thumbnail`
+
+5. **Add to Cart button:**
+   - Must include the selected `paperId` in the request
+   - Disable if no paper is selected
 
 ---
 
-### 2. Get Category by ID
-**Endpoint:** `GET /api/categories/{id}`  
-**Authentication:** Optional (public endpoint)
+## 3️⃣ Cart API (`POST /cart/add`, `GET /cart`)
 
-**Rules:**
-- Returns only non-deleted categories for non-authenticated users
-- Returns any category for admin users
-- Returns `404 Not Found` if category does not exist or is soft-deleted (for non-admins)
+### What Changed
 
----
+| Field | Status | Notes |
+|-------|--------|-------|
+| `paperId` | ✅ **NEW** | Optional paper selection when adding to cart |
+| `paper` | ✅ **NEW** | Full paper object included in cart items |
 
-## Publication APIs
+### Add to Cart Request
 
-### 1. Get All Publications
-**Endpoint:** `GET /api/publications`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only non-deleted publications for non-authenticated users
-- Returns all publications for admin users
-- Results ordered by `createdAt` descending
-
-**Success Response (200):**
-```json
-{
-  "message": "Publications retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Pearson Education",
-      "slug": "pearson-education",
-      "description": "A leading publishing company",
-      "logo": "https://example.com/logo.png",
-      "status": "PUBLISHED",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Publication by ID
-**Endpoint:** `GET /api/publications/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only non-deleted publications for non-authenticated users
-- Returns any publication for admin users
-- Returns `404 Not Found` if publication does not exist or is soft-deleted (for non-admins)
-
----
-
-## Subject APIs
-
-### 1. Get All Subjects
-**Endpoint:** `GET /api/subjects`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only non-deleted subjects for non-authenticated users
-- Returns all subjects for admin users
-- Results ordered by `createdAt` descending
-
-**Success Response (200):**
-```json
-{
-  "message": "Subjects retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Mathematics",
-      "slug": "mathematics",
-      "description": "All mathematics related books",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Subject by ID
-**Endpoint:** `GET /api/subjects/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only non-deleted subjects for non-authenticated users
-- Returns any subject for admin users
-- Returns `404 Not Found` if subject does not exist or is soft-deleted (for non-admins)
-
----
-
-## Banner APIs
-
-### 1. Get All Banners
-**Endpoint:** `GET /api/banners`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` and non-deleted banners for non-authenticated users
-- Returns all banners for admin users
-- Results ordered by `displayOrder` ascending
-
-**Success Response (200):**
-```json
-{
-  "message": "Banners retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "title": "Summer Sale",
-      "subtitle": "Up to 50% off",
-      "image": "https://example.com/banner.jpg",
-      "buttonText": "Shop Now",
-      "buttonUrl": "/books",
-      "displayOrder": 0,
-      "status": "PUBLISHED",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Banner by ID
-**Endpoint:** `GET /api/banners/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` and non-deleted banners for non-authenticated users
-- Returns any banner for admin users
-- Returns `404 Not Found` if banner does not exist or is not published (for non-admins)
-
----
-
-## Teacher APIs
-
-### 1. Get All Teachers
-**Endpoint:** `GET /api/teachers`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` and non-deleted teachers for non-authenticated users
-- Returns all teachers for admin users
-- Results ordered by `displayOrder` ascending
-
-**Success Response (200):**
-```json
-{
-  "message": "Teachers retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Dr. John Doe",
-      "designation": "Professor of Mathematics",
-      "bio": "Expert in mathematics with 20 years of experience",
-      "photo": "https://example.com/photo.jpg",
-      "facebook": "https://facebook.com/johndoe",
-      "linkedin": "https://linkedin.com/in/johndoe",
-      "website": "https://johndoe.com",
-      "displayOrder": 0,
-      "featured": true,
-      "status": "PUBLISHED",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Teacher by ID
-**Endpoint:** `GET /api/teachers/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only `PUBLISHED` and non-deleted teachers for non-authenticated users
-- Returns any teacher for admin users
-- **Includes associated books** (`teacherBooks`) in the response
-- Returns `404 Not Found` if teacher does not exist or is not published (for non-admins)
-
-**Success Response (200):**
-```json
-{
-  "message": "Teacher retrieved successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "name": "Dr. John Doe",
-    "designation": "Professor of Mathematics",
-    "bio": "...",
-    "photo": "https://example.com/photo.jpg",
-    "facebook": "https://facebook.com/johndoe",
-    "linkedin": "https://linkedin.com/in/johndoe",
-    "website": "https://johndoe.com",
-    "displayOrder": 0,
-    "featured": true,
-    "status": "PUBLISHED",
-    "teacherBooks": [
-      {
-        "teacherId": "uuid",
-        "bookId": "uuid",
-        "book": {
-          "id": "uuid",
-          "title": "Book A",
-          "slug": "book-a",
-          "thumbnail": "https://res.cloudinary.com/...",
-          "price": "250.00"
-        }
-      }
-    ]
-  }
-}
-```
-
----
-
-## Review APIs
-
-### 1. Get All Reviews for a Book
-**Endpoint:** `GET /api/reviews?bookId={bookId}`  
-**Authentication:** Optional (public endpoint)
-
-**Query Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `bookId` | string | Yes | UUID of the book |
-
-**Rules:**
-- Returns only reviews for `PUBLISHED` and non-deleted books for non-authenticated users
-- Returns all reviews for admin users
-- Results ordered by `displayOrder` ascending
-
-**Success Response (200):**
-```json
-{
-  "message": "Reviews retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "bookId": "uuid",
-      "reviewerName": "John Doe",
-      "designation": "Professor",
-      "rating": 5,
-      "comment": "Excellent book!",
-      "displayOrder": 0,
-      "status": "PUBLISHED",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Review by ID
-**Endpoint:** `GET /api/reviews/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only reviews for `PUBLISHED` and non-deleted books for non-authenticated users
-- Returns any review for admin users
-- Returns `404 Not Found` if review does not exist or the associated book is not published (for non-admins)
-
----
-
-## Book Part APIs
-
-### 1. Get All Book Parts for a Book
-**Endpoint:** `GET /api/book-parts?bookId={bookId}`  
-**Authentication:** Optional (public endpoint)
-
-**Query Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `bookId` | string | Yes | UUID of the book |
-
-**Rules:**
-- Returns only parts for `PUBLISHED` and non-deleted books for non-authenticated users
-- Returns all parts for admin users
-- Results ordered by `partNumber` ascending
-
-**Success Response (200):**
-```json
-{
-  "message": "Book parts retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "bookId": "uuid",
-      "title": "Chapter 1: Introduction",
-      "partNumber": 1,
-      "description": "Introduction to the subject",
-      "price": "50.00",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Get Book Part by ID
-**Endpoint:** `GET /api/book-parts/{id}`  
-**Authentication:** Optional (public endpoint)
-
-**Rules:**
-- Returns only parts for `PUBLISHED` and non-deleted books for non-authenticated users
-- Returns any part for admin users
-- Returns `404 Not Found` if part does not exist or the associated book is not published (for non-admins)
-
----
-
-## Cart APIs
-
-> **Note:** All cart APIs require authentication.
-
-### 1. Get Cart
-**Endpoint:** `GET /api/cart`  
-**Authentication:** Required
-
-**Rules:**
-- Returns the authenticated user's cart
-- If cart does not exist, a new empty cart is created automatically
-- Includes cart items with full book details
-
-**Success Response (200):**
-```json
-{
-  "message": "Cart retrieved successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
-    "cartItems": [
-      {
-        "id": "uuid",
-        "cartId": "uuid",
-        "bookId": "uuid",
-        "quantity": 2,
-        "book": {
-          "id": "uuid",
-          "title": "Book A",
-          "slug": "book-a",
-          "price": "250.00",
-          "discountPrice": "200.00",
-          "thumbnail": "https://res.cloudinary.com/...",
-          "status": "PUBLISHED"
-        }
-      }
-    ]
-  }
-}
-```
-
----
-
-### 2. Add to Cart
-**Endpoint:** `POST /api/cart`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body:**
+**Before:**
 ```json
 {
   "bookId": "uuid",
-  "quantity": 2
+  "quantity": 1
 }
 ```
 
-**Validation Rules:**
-- `bookId` is required — must reference an existing, published book
-- `quantity` is required and must be at least 1
-
-**Rules:**
-- If the book is already in the cart, the quantity is incremented
-- If the book is not in the cart, a new cart item is created
-- Returns the updated cart
-
-**Success Response (200):**
+**After:**
 ```json
 {
-  "message": "Book added to cart successfully",
-  "status": "success",
+  "bookId": "uuid",
+  "paperId": "uuid",
+  "quantity": 1
+}
+```
+
+**Note:** `paperId` is optional for backward compatibility, but the frontend should always send it when a paper is selected.
+
+### Cart Response
+
+```json
+{
   "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "cartItems": [ ... ]
-  }
-}
-```
-
-**Error Responses:**
-- `404 Not Found` — Book not found or not published
-
----
-
-### 3. Update Cart Item Quantity
-**Endpoint:** `PATCH /api/cart/items/{cartItemId}`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body:**
-```json
-{
-  "quantity": 3
-}
-```
-
-**Rules:**
-- `cartItemId` must belong to the authenticated user's cart
-- `quantity` replaces the existing quantity (does not increment)
-
-**Success Response (200):**
-```json
-{
-  "message": "Cart item updated successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "cartId": "uuid",
-    "bookId": "uuid",
-    "quantity": 3
-  }
-}
-```
-
-**Error Responses:**
-- `404 Not Found` — Cart item not found or does not belong to user
-
----
-
-### 4. Remove from Cart
-**Endpoint:** `DELETE /api/cart/items/{cartItemId}`  
-**Authentication:** Required
-
-**Rules:**
-- `cartItemId` must belong to the authenticated user's cart
-- The item is permanently deleted from the cart
-
-**Success Response (200):**
-```json
-{
-  "message": "Book removed from cart successfully",
-  "status": "success",
-  "data": null
-}
-```
-
-**Error Responses:**
-- `404 Not Found` — Cart item not found or does not belong to user
-
----
-
-### 5. Clear Cart
-**Endpoint:** `DELETE /api/cart`  
-**Authentication:** Required
-
-**Rules:**
-- Removes all items from the authenticated user's cart
-- This action is irreversible
-
-**Success Response (200):**
-```json
-{
-  "message": "Cart cleared successfully",
-  "status": "success",
-  "data": null
-}
-```
-
----
-
-## Wishlist APIs
-
-> **Note:** All wishlist APIs require authentication.
-
-### 1. Get Wishlist
-**Endpoint:** `GET /api/wishlist`  
-**Authentication:** Required
-
-**Rules:**
-- Returns the authenticated user's wishlist
-- Only includes published, non-deleted books
-- Results include full book details
-
-**Success Response (200):**
-```json
-{
-  "message": "Wishlist retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "userId": "uuid",
-      "bookId": "uuid",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "book": {
-        "id": "uuid",
-        "title": "Book A",
-        "slug": "book-a",
-        "price": "250.00",
-        "discountPrice": "200.00",
-        "thumbnail": "https://res.cloudinary.com/...",
-        "status": "PUBLISHED"
-      }
-    }
-  ]
-}
-```
-
----
-
-### 2. Add to Wishlist
-**Endpoint:** `POST /api/wishlist`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body:**
-```json
-{
-  "bookId": "uuid"
-}
-```
-
-**Validation Rules:**
-- `bookId` is required — must reference an existing, published book
-
-**Rules:**
-- If the book is already in the wishlist, returns the existing item with message "Book already in wishlist"
-- If not, creates a new wishlist item
-
-**Success Response (200):**
-```json
-{
-  "message": "Book added to wishlist successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "bookId": "uuid",
-    "createdAt": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
-**Error Responses:**
-- `404 Not Found` — Book not found or not published
-
----
-
-### 3. Remove from Wishlist
-**Endpoint:** `DELETE /api/wishlist/{bookId}`  
-**Authentication:** Required
-
-**Rules:**
-- `bookId` must be in the authenticated user's wishlist
-- The item is permanently deleted
-
-**Success Response (200):**
-```json
-{
-  "message": "Book removed from wishlist successfully",
-  "status": "success",
-  "data": null
-}
-```
-
-**Error Responses:**
-- `404 Not Found` — Book not found in wishlist
-
----
-
-## Address APIs
-
-> **Note:** All address APIs require authentication.
-
-### 1. Get All Addresses
-**Endpoint:** `GET /api/addresses`  
-**Authentication:** Required
-
-**Rules:**
-- Returns only addresses belonging to the authenticated user
-- Only returns non-deleted addresses
-- Results ordered by `createdAt` descending
-
-**Success Response (200):**
-```json
-{
-  "message": "Addresses retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "userId": "uuid",
-      "name": "John Doe",
-      "phone": "+8801712345678",
-      "country": "Bangladesh",
-      "division": "Dhaka",
-      "district": "Dhaka",
-      "area": "Gulshan",
-      "addressLine": "House 123, Road 456",
-      "postalCode": "1212",
-      "isDefault": true,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-### 2. Create Address
-**Endpoint:** `POST /api/addresses`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body:**
-```json
-{
-  "name": "John Doe",
-  "phone": "+8801712345678",
-  "country": "Bangladesh",
-  "division": "Dhaka",
-  "district": "Dhaka",
-  "area": "Gulshan",
-  "addressLine": "House 123, Road 456",
-  "postalCode": "1212",
-  "isDefault": true
-}
-```
-
-**Validation Rules:**
-- `name`, `phone`, `country`, `division`, `district`, `area`, `addressLine` are required
-- `postalCode` and `isDefault` are optional
-
-**Rules:**
-- If `isDefault` is `true`, all other addresses for the user are set to non-default
-- Address is automatically associated with the authenticated user
-
-**Success Response (201):**
-```json
-{
-  "message": "Address created successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "name": "John Doe",
-    "phone": "+8801712345678",
-    "country": "Bangladesh",
-    "division": "Dhaka",
-    "district": "Dhaka",
-    "area": "Gulshan",
-    "addressLine": "House 123, Road 456",
-    "postalCode": "1212",
-    "isDefault": true,
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
----
-
-### 3. Get Address by ID
-**Endpoint:** `GET /api/addresses/{id}`  
-**Authentication:** Required
-
-**Rules:**
-- Returns only if the address belongs to the authenticated user
-- Returns `404 Not Found` if address does not exist or does not belong to the user
-
----
-
-### 4. Update Address
-**Endpoint:** `PATCH /api/addresses/{id}`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body (all fields optional):**
-```json
-{
-  "name": "John Doe Updated",
-  "phone": "+8801799999999",
-  "country": "Bangladesh",
-  "division": "Chittagong",
-  "district": "Chittagong",
-  "area": "Agrabad",
-  "addressLine": "Office Building 789",
-  "postalCode": "4100",
-  "isDefault": true
-}
-```
-
-**Rules:**
-- Only the address owner can update
-- If `isDefault` is set to `true`, all other addresses for the user are set to non-default
-- Only provided fields are updated
-
-**Success Response (200):**
-```json
-{
-  "message": "Address updated successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "name": "John Doe Updated",
-    ...
-  }
-}
-```
-
----
-
-### 5. Delete Address
-**Endpoint:** `DELETE /api/addresses/{id}`  
-**Authentication:** Required
-
-**Rules:**
-- Only the address owner can delete
-- Performs soft delete — address is marked as deleted but remains in database
-- Returns `404 Not Found` if address does not exist or does not belong to the user
-
-**Success Response (200):**
-```json
-{
-  "message": "Address deleted successfully",
-  "status": "success",
-  "data": null
-}
-```
-
----
-
-## Order APIs
-
-> **Note:** All order APIs require authentication.
-
-### 1. Create Order (Checkout)
-**Endpoint:** `POST /api/orders`  
-**Authentication:** Required  
-**Content-Type:** `application/json`
-
-**Request Body:**
-```json
-{
-  "addressId": "uuid",
-  "discount": 50,
-  "shipping": 30,
-  "paymentMethod": "COD",
-  "notes": "Please deliver before 5 PM"
-}
-```
-
-**Validation Rules:**
-- `addressId` is required — must belong to the authenticated user
-- `discount` and `shipping` are optional numbers
-- `paymentMethod` is optional — must be one of: `COD`, `CARD`, `BANK_TRANSFER`, `MOBILE_BANKING`
-- `notes` is optional string
-
-**Rules:**
-- User must have at least one item in their cart
-- Cart is automatically cleared after successful order creation
-- Order number is auto-generated
-- Order status defaults to `PENDING`
-- Payment status defaults to `PENDING`
-
-**Success Response (201):**
-```json
-{
-  "message": "Order created successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "addressId": "uuid",
-    "orderNumber": "ORD-1710000000000-123",
-    "subtotal": "500.00",
-    "discount": "50.00",
-    "shipping": "30.00",
-    "total": "480.00",
-    "status": "PENDING",
-    "paymentStatus": "PENDING",
-    "paymentMethod": "COD",
-    "notes": "Please deliver before 5 PM",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
-    "orderItems": [
+    "cartItems": [
       {
         "id": "uuid",
-        "orderId": "uuid",
         "bookId": "uuid",
-        "bookTitle": "Book A",
-        "bookPrice": "250.00",
-        "quantity": 2,
-        "subtotal": "500.00"
+        "paperId": "uuid",
+        "quantity": 1,
+        "book": {
+          "id": "uuid",
+          "title": "Physics for Class 11",
+          "thumbnail": "https://..."
+        },
+        "paper": {
+          "id": "uuid",
+          "name": "Paper A",
+          "price": 300,
+          "effectivePrice": 250,
+          "isInStock": true
+        }
       }
     ]
   }
 }
 ```
 
-**Error Responses:**
-- `404 Not Found` — Cart is empty or address not found
+### Frontend Changes Needed
+
+1. **Add to Cart flow:**
+   - Always send `paperId` along with `bookId`
+   - If user tries to add without selecting a paper, show error: "Please select a paper variant"
+
+2. **Cart page:**
+   - Show paper name and price for each cart item
+   - Allow changing paper selection (remove and re-add with different paper)
+   - Show paper-specific stock status
+   - Use `paper.effectivePrice` for price display
+
+3. **Cart item structure:**
+   - Each cart item now represents a specific book + paper combination
+   - Same book with different papers = separate cart items
 
 ---
 
-### 2. Get All Orders
-**Endpoint:** `GET /api/orders`  
-**Authentication:** Required
+## 4️⃣ Checkout / Order API (`POST /orders`, `GET /orders/:id`)
 
-**Rules:**
-- Regular users see only their own orders
-- Admins see all orders
-- Results ordered by `createdAt` descending
+### What Changed
 
-**Success Response (200):**
+| Field | Status | Notes |
+|-------|--------|-------|
+| `paperId` | ✅ **NEW** | The specific paper variant purchased |
+| `paperName` | ✅ **NEW** | Snapshot of paper name at purchase time |
+| `paperPrice` | ✅ **NEW** | Effective price at purchase time |
+
+### Order Items Response
+
 ```json
 {
-  "message": "Orders retrieved successfully",
-  "status": "success",
-  "data": [
+  "orderItems": [
     {
       "id": "uuid",
-      "orderNumber": "ORD-1710000000000-123",
-      "total": "480.00",
-      "status": "PENDING",
-      "paymentStatus": "PENDING",
-      "paymentMethod": "COD",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "orderItems": [ ... ]
-    }
-  ]
-}
-```
-
----
-
-### 3. Get Order by ID
-**Endpoint:** `GET /api/orders/{id}`  
-**Authentication:** Required
-
-**Rules:**
-- Regular users can only view their own orders
-- Admins can view any order
-- Returns `404 Not Found` if order does not exist or does not belong to the user
-- Response includes `orderItems` and `payments`
-
-**Success Response (200):**
-```json
-{
-  "message": "Order retrieved successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "orderNumber": "ORD-1710000000000-123",
-    "subtotal": "500.00",
-    "discount": "50.00",
-    "shipping": "30.00",
-    "total": "480.00",
-    "status": "PENDING",
-    "paymentStatus": "PENDING",
-    "paymentMethod": "COD",
-    "notes": "Please deliver before 5 PM",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
-    "orderItems": [ ... ],
-    "payments": [
-      {
+      "bookId": "uuid",
+      "paperId": "uuid",
+      "bookTitle": "Physics for Class 11",
+      "paperName": "Paper A",
+      "paperPrice": 250,
+      "quantity": 1,
+      "subtotal": 250,
+      "paper": {
         "id": "uuid",
-        "orderId": "uuid",
-        "gateway": "COD",
-        "amount": "480.00",
-        "currency": "BDT",
-        "status": "PENDING",
-        "createdAt": "2024-01-01T00:00:00.000Z"
+        "name": "Paper A",
+        "price": 300,
+        "effectivePrice": 250
       }
-    ]
-  }
-}
-```
-
----
-
-## Setting APIs
-
-### 1. Get All Settings
-**Endpoint:** `GET /api/settings`  
-**Authentication:** Not required (public endpoint)
-
-**Rules:**
-- Returns all key-value settings
-- Useful for fetching site-wide configuration
-
-**Success Response (200):**
-```json
-{
-  "message": "Settings retrieved successfully",
-  "status": "success",
-  "data": [
-    {
-      "id": "uuid",
-      "key": "site_name",
-      "value": "Bookstore CMS",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "uuid",
-      "key": "contact_email",
-      "value": "support@bookstore.com",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
     }
   ]
 }
 ```
 
+### Frontend Changes Needed
+
+1. **Order confirmation page:**
+   - Show `paperName` for each item
+   - Show `paperPrice` (the price at time of purchase)
+   - Show discount if `paperPrice` < original `paper.price`
+
+2. **Order history / order detail:**
+   - Display paper variant name alongside book title
+   - Show the price the customer paid (`paperPrice`)
+
+3. **Order summary:**
+   - Items are now book + paper combinations
+   - Subtotal is calculated per paper variant
+
 ---
 
-### 2. Get Setting by Key
-**Endpoint:** `GET /api/settings/{key}`  
-**Authentication:** Not required (public endpoint)
+## 5️⃣ Complete API Flow for Customer Frontend
 
-**Rules:**
-- Returns a single setting by its unique key
-- Returns `null` if setting does not exist
+### Flow 1: Browse Books
 
-**Success Response (200):**
-```json
-{
-  "message": "Setting retrieved successfully",
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "key": "site_name",
-    "value": "Bookstore CMS",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z"
+```
+GET /books
+→ Display list with priceRange.display
+→ On click → navigate to book detail
+```
+
+### Flow 2: View Book Detail & Select Paper
+
+```
+GET /books/:id
+→ Show book info (title, description, thumbnail)
+→ Show papers list:
+   - Paper A — ৳300 (৳250 with discount) — In Stock
+   - Paper B — ৳350 — Only 5 left
+   - MCQ Paper — Out of Stock
+→ User selects a paper
+→ Show selected paper price and stock
+→ "Add to Cart" button enabled
+```
+
+### Flow 3: Add to Cart
+
+```
+POST /cart/add
+Body: {
+  "bookId": "uuid",
+  "paperId": "uuid",  // selected paper
+  "quantity": 1
+}
+→ On success → update cart count
+→ On error (out of stock) → show message
+```
+
+### Flow 4: View Cart
+
+```
+GET /cart
+→ For each item:
+   - Book title + Paper name
+   - Paper price (effectivePrice)
+   - Quantity selector
+   - Remove button
+→ Show total
+→ Proceed to checkout
+```
+
+### Flow 5: Checkout
+
+```
+POST /orders
+Body: {
+  "addressId": "uuid",
+  "paymentMethod": "COD",
+  "notes": "..."
+}
+→ Order created with paper-specific pricing
+→ Redirect to order confirmation
+→ Show paperName and paperPrice in confirmation
+```
+
+---
+
+## 6️⃣ Important Notes for Frontend
+
+### Price Display Logic
+
+```javascript
+function getDisplayPrice(paper) {
+  const now = new Date();
+  const isDiscounted = paper.discountPrice &&
+    paper.discountStartDate &&
+    paper.discountEndDate &&
+    now >= new Date(paper.discountStartDate) &&
+    now <= new Date(paper.discountEndDate);
+
+  if (isDiscounted) {
+    return {
+      price: paper.effectivePrice,
+      originalPrice: Number(paper.price),
+      discount: Math.round((1 - paper.effectivePrice / Number(paper.price)) * 100)
+    };
   }
+
+  return {
+    price: Number(paper.price),
+    originalPrice: null,
+    discount: 0
+  };
+}
+```
+
+### Stock Display Logic
+
+```javascript
+function getStockStatus(paper) {
+  if (paper.stock <= 0) {
+    return { text: 'Out of Stock', canAddToCart: false };
+  }
+  if (paper.stock <= 5) {
+    return { text: `Only ${paper.stock} left`, canAddToCart: true };
+  }
+  return { text: 'In Stock', canAddToCart: true };
+}
+```
+
+### Paper Selection State
+
+```javascript
+// In product detail page
+const [selectedPaperId, setSelectedPaperId] = useState(paper.isDefault ? paper.id : null);
+
+// Validate before add to cart
+if (!selectedPaperId) {
+  alert('Please select a paper variant');
+  return;
 }
 ```
 
 ---
 
-## Error Handling
-
-All APIs return consistent error responses:
-
-### 400 Bad Request
-```json
-{
-  "statusCode": 400,
-  "message": "Validation failed",
-  "errors": [
-    {
-      "field": "email",
-      "message": "Please provide a valid email address"
-    }
-  ]
-}
-```
-
-### 401 Unauthorized
-```json
-{
-  "statusCode": 401,
-  "message": "Invalid credentials"
-}
-```
-
-### 403 Forbidden
-```json
-{
-  "statusCode": 403,
-  "message": "Only administrators can create books"
-}
-```
-
-### 404 Not Found
-```json
-{
-  "statusCode": 404,
-  "message": "Book not found"
-}
-```
-
-### 409 Conflict
-```json
-{
-  "statusCode": 409,
-  "message": "Book with this slug already exists"
-}
-```
-
----
-
-## Rules & Best Practices
-
-### General Rules
-
-1. **Authentication**
-   - Include `Authorization: Bearer {token}` header for all authenticated endpoints
-   - Token is obtained from `/api/auth/login` or `/api/auth/signup`
-   - If token expires, redirect to login
-
-2. **Public vs Private Data**
-   - Books, categories, publications, subjects, banners, teachers, reviews, book parts, and settings are public
-   - Cart, wishlist, addresses, and orders require authentication
-   - Soft-deleted records are excluded from public queries
-
-3. **Price Display**
-   - Always check `discountPrice` first — if available, display it as the current price
-   - Fall back to `price` if `discountPrice` is null
-   - Example: `displayPrice = book.discountPrice || book.price`
-
-4. **Stock Availability**
-   - Check `stock` field — if `false`, the book is not available for purchase (print-on-demand)
-   - If `stock` is `true`, check `stockAmount` for available quantity
-
-5. **Image Handling**
-   - `thumbnail` on Book is the main cover image URL
-   - `attachments` array contains additional images
-   - `image` on Banner and Teacher is a URL string
-   - `logo` on Publication is a URL string
-   - All images are hosted on Cloudinary
-
-6. **Pagination**
-   - The current API does **not** support pagination — all records are returned in a single response
-   - For large datasets, consider implementing client-side pagination or request server-side pagination
-
-7. **Search & Filter**
-   - The current API does **not** have built-in search or filter endpoints
-   - Filter client-side after fetching all records, or request additional filter endpoints from the backend
-
-8. **Cart Quantity**
-   - When adding a book that already exists in cart, quantity is incremented
-   - Use `PATCH /api/cart/items/{id}` to set a specific quantity
-
-9. **Order Flow**
-   - User must have items in cart before checkout
-   - User must have at least one saved address
-   - Cart is cleared automatically after order creation
-   - Order status starts as `PENDING`
-
-10. **What NOT to Do**
-    - **Do NOT** call admin-only endpoints from the customer frontend
-    - **Do NOT** modify `orderNumber` — it is auto-generated and immutable
-    - **Do NOT** delete cart items before order creation fails — if order creation fails, cart should remain intact
-    - **Do NOT** trust client-side price calculations — always use backend-calculated prices for orders
-    - **Do NOT** expose the `accessToken` in URLs or logs
-    - **Do NOT** store sensitive data (like passwords) in localStorage
-
----
-
-## Quick Reference: Customer-Facing Endpoints
+## 7️⃣ API Endpoint Summary (Customer-Facing)
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/auth/signup` | No | Register new user |
-| POST | `/api/auth/login` | No | Login user |
-| GET | `/api/books` | Optional | List all published books |
-| GET | `/api/books/{id}` | Optional | Get book details (with reviews) |
-| GET | `/api/categories` | Optional | List all categories |
-| GET | `/api/categories/{id}` | Optional | Get category details |
-| GET | `/api/publications` | Optional | List all publications |
-| GET | `/api/publications/{id}` | Optional | Get publication details |
-| GET | `/api/subjects` | Optional | List all subjects |
-| GET | `/api/subjects/{id}` | Optional | Get subject details |
-| GET | `/api/banners` | Optional | List all published banners |
-| GET | `/api/banners/{id}` | Optional | Get banner details |
-| GET | `/api/teachers` | Optional | List all published teachers |
-| GET | `/api/teachers/{id}` | Optional | Get teacher details (with books) |
-| GET | `/api/reviews?bookId={id}` | Optional | Get reviews for a book |
-| GET | `/api/reviews/{id}` | Optional | Get review details |
-| GET | `/api/book-parts?bookId={id}` | Optional | Get book parts for a book |
-| GET | `/api/book-parts/{id}` | Optional | Get book part details |
-| GET | `/api/cart` | Yes | Get user's cart |
-| POST | `/api/cart` | Yes | Add book to cart |
-| PATCH | `/api/cart/items/{id}` | Yes | Update cart item quantity |
-| DELETE | `/api/cart/items/{id}` | Yes | Remove item from cart |
-| DELETE | `/api/cart` | Yes | Clear cart |
-| GET | `/api/wishlist` | Yes | Get user's wishlist |
-| POST | `/api/wishlist` | Yes | Add book to wishlist |
-| DELETE | `/api/wishlist/{bookId}` | Yes | Remove book from wishlist |
-| GET | `/api/addresses` | Yes | Get user's addresses |
-| POST | `/api/addresses` | Yes | Create new address |
-| GET | `/api/addresses/{id}` | Yes | Get address details |
-| PATCH | `/api/addresses/{id}` | Yes | Update address |
-| DELETE | `/api/addresses/{id}` | Yes | Delete address |
-| POST | `/api/orders` | Yes | Create order (checkout) |
-| GET | `/api/orders` | Yes | Get user's orders |
-| GET | `/api/orders/{id}` | Yes | Get order details |
-| GET | `/api/settings` | No | Get all settings |
-| GET | `/api/settings/{key}` | No | Get setting by key |
+| `GET` | `/books` | Public | List books with `priceRange` |
+| `GET` | `/books/:id` | Public | Get book with `papers` array |
+| `GET` | `/books/tree` | Public | Get tree structure with `priceRange` |
+| `POST` | `/cart/add` | User | Add to cart (must include `paperId`) |
+| `GET` | `/cart` | User | Get cart with paper details |
+| `PATCH` | `/cart/item/:id` | User | Update cart item quantity |
+| `DELETE` | `/cart/item/:id` | User | Remove item from cart |
+| `POST` | `/orders` | User | Create order (uses paper pricing) |
+| `GET` | `/orders` | User | List user's orders |
+| `GET` | `/orders/:id` | User | Get order with paper details |
+
+---
+
+## 8️⃣ Breaking Changes Summary
+
+| Feature | Before | After |
+|---------|--------|-------|
+| Product listing price | `book.price` | `book.priceRange.display` |
+| Product detail price | `book.price` | Select `paper.effectivePrice` |
+| Add to cart | `bookId` + `quantity` | `bookId` + `paperId` + `quantity` |
+| Cart item | Book only | Book + Paper |
+| Order item | `bookTitle` + `price` | `bookTitle` + `paperName` + `paperPrice` |
+| Stock | Per book | Per paper |
+| Discount | Per book | Per paper (date-range based) |
+
+---
+
+*Generated from backend implementation verification of `docs/Book_Paper_Variant_API_Changes.md` and `docs/Updated_Book_Service_implementation.md`*

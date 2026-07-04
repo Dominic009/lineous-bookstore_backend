@@ -11,6 +11,8 @@ import {
   Query,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { BookPaperService } from './book-paper.service';
 import { CreateBookPaperDto } from './dto/create-book-paper.dto';
@@ -19,6 +21,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { Role } from '@prisma/client';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 interface RequestWithUser extends Request {
   user: {
@@ -30,13 +34,21 @@ interface RequestWithUser extends Request {
 
 @Controller('book-papers')
 export class BookPaperController {
-  constructor(private readonly bookPaperService: BookPaperService) {}
+  constructor(
+    private readonly bookPaperService: BookPaperService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  create(@Body() dto: CreateBookPaperDto, @Request() req: RequestWithUser) {
-    return this.bookPaperService.create(dto, req.user.role);
+  @UseInterceptors(FileInterceptor('thumbnail'))
+  create(
+    @Body() dto: CreateBookPaperDto,
+    @Request() req: RequestWithUser,
+    @UploadedFile() thumbnail?: Express.Multer.File,
+  ) {
+    return this.bookPaperService.create(dto, req.user.role, thumbnail);
   }
 
   @Get('book/:bookId')
@@ -52,12 +64,14 @@ export class BookPaperController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @UseInterceptors(FileInterceptor('thumbnail'))
   update(
     @Param('id') id: string,
     @Body() dto: UpdateBookPaperDto,
     @Request() req: RequestWithUser,
+    @UploadedFile() thumbnail?: Express.Multer.File,
   ) {
-    return this.bookPaperService.update(id, dto, req.user.role);
+    return this.bookPaperService.update(id, dto, req.user.role, thumbnail);
   }
 
   @Delete(':id')
