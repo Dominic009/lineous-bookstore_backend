@@ -185,4 +185,24 @@ export class AuthService {
       },
     };
   }
+
+  async socialLogin(
+    email: string,
+    provider: Provider,
+    providerId: string,
+    firstName?: string,
+    lastName?: string,
+    avatar?: string,
+  ) {
+    const user = await this.validateOAuthUser(
+      email,
+      provider,
+      providerId,
+      firstName,
+      lastName,
+      avatar,
+    );
+
+    return this.generateToken(user);
+  }
 }

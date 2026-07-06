@@ -4,6 +4,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { SocialLoginDto } from './dto/social-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -22,5 +23,17 @@ export class AuthController {
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto.email, loginDto.password);
+  }
+
+  @Post('social-login')
+  socialLogin(@Body() socialLoginDto: SocialLoginDto) {
+    return this.authService.socialLogin(
+      socialLoginDto.email,
+      socialLoginDto.provider,
+      socialLoginDto.providerId,
+      socialLoginDto.firstName,
+      socialLoginDto.lastName,
+      socialLoginDto.avatar,
+    );
   }
 }
