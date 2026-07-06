@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateTestOrderDto } from './dto/create-test-order.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -39,6 +40,16 @@ export class OrderController {
   @Post()
   create(@Body() dto: CreateOrderDto, @Request() req: RequestWithUser) {
     return this.orderService.create(dto, req.user.id);
+  }
+
+  /**
+   * Create a test order directly (for testing purposes)
+   * This endpoint creates address, cart items, and order in one request
+   * Access: Authenticated users
+   */
+  @Post('test')
+  testOrder(@Body() dto: CreateTestOrderDto, @Request() req: RequestWithUser) {
+    return this.orderService.testOrder(dto, req.user.id);
   }
 
   /**

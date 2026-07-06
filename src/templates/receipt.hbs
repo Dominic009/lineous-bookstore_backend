@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt - {{receiptNumber}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      padding: 40px;
+      color: #1e293b;
+    }
+
+    .receipt-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+
+    .receipt-header {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+      padding: 32px 40px;
+      text-align: center;
+    }
+
+    .receipt-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .receipt-header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .receipt-body {
+      padding: 40px;
+    }
+
+    .receipt-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px dashed #e2e8f0;
+    }
+
+    .receipt-meta-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .receipt-meta-section p {
+      font-size: 14px;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+
+    .receipt-meta-section .highlight {
+      font-weight: 600;
+      color: #1e40af;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    .items-table thead {
+      background-color: #f1f5f9;
+    }
+
+    .items-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .items-table th:last-child,
+    .items-table td:last-child {
+      text-align: right;
+    }
+
+    .items-table td {
+      padding: 16px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+    }
+
+    .items-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .items-table .item-name {
+      font-weight: 500;
+      color: #1e293b;
+    }
+
+    .items-table .item-variant {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 32px;
+    }
+
+    .totals-table {
+      width: 300px;
+      border-collapse: collapse;
+    }
+
+    .totals-table td {
+      padding: 8px 0;
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .totals-table td:last-child {
+      text-align: right;
+      font-weight: 500;
+      color: #1e293b;
+    }
+
+    .totals-table .grand-total-row {
+      border-top: 2px solid #1e293b;
+      margin-top: 8px;
+    }
+
+    .totals-table .grand-total-row td {
+      padding-top: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    .receipt-footer {
+      background-color: #f8fafc;
+      padding: 24px 40px;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .qr-code {
+      display: inline-block;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .qr-code img {
+      width: 120px;
+      height: 120px;
+      display: block;
+    }
+
+    .receipt-footer p {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .receipt-footer .thank-you {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 120px;
+      font-weight: 700;
+      color: rgba(30, 64, 175, 0.03);
+      pointer-events: none;
+      z-index: 0;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+
+      .receipt-container {
+        box-shadow: none;
+        border-radius: 0;
+      }
+
+      .watermark {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="watermark">PAID</div>
+
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <h1>BookStore</h1>
+      <p>Thank you for your purchase!</p>
+    </div>
+
+    <div class="receipt-body">
+      <div class="receipt-meta">
+        <div class="receipt-meta-section">
+          <h3>Receipt Number</h3>
+          <p class="highlight">{{receiptNumber}}</p>
+        </div>
+        <div class="receipt-meta-section">
+          <h3>Date</h3>
+          <p>{{date}}</p>
+        </div>
+        <div class="receipt-meta-section">
+          <h3>Payment Method</h3>
+          <p>{{paymentMethod}}</p>
+        </div>
+        <div class="receipt-meta-section">
+          <h3>Status</h3>
+          <p class="highlight">{{paymentStatus}}</p>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width: 40%;">Item</th>
+            <th style="width: 15%;">Qty</th>
+            <th style="width: 20%;">Price</th>
+            <th style="width: 25%;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each items}}
+          <tr>
+            <td>
+              <div class="item-name">{{bookTitle}}</div>
+              {{#if paperName}}
+              <div class="item-variant">{{paperName}}</div>
+              {{/if}}
+            </td>
+            <td>{{quantity}}</td>
+            <td>৳{{unitPrice}}</td>
+            <td>৳{{subtotal}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <div class="totals-section">
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal</td>
+            <td>৳{{subtotal}}</td>
+          </tr>
+          {{#if discount}}
+          <tr>
+            <td>Discount</td>
+            <td>-৳{{discount}}</td>
+          </tr>
+          {{/if}}
+          <tr>
+            <td>Shipping</td>
+            <td>৳{{shipping}}</td>
+          </tr>
+          {{#if tax}}
+          <tr>
+            <td>Tax</td>
+            <td>৳{{tax}}</td>
+          </tr>
+          {{/if}}
+          <tr class="grand-total-row">
+            <td>Grand Total</td>
+            <td>৳{{grandTotal}}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="receipt-footer">
+      {{#if qrCodeDataUrl}}
+      <div class="qr-code">
+        <img src="{{qrCodeDataUrl}}" alt="QR Code" />
+      </div>
+      {{/if}}
+      <p class="thank-you">Thank you for shopping with us!</p>
+      <p>For any queries, please contact our support team.</p>
+      <p>Receipt generated on {{date}}</p>
+    </div>
+  </div>
+</body>
+</html>

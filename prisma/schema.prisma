@@ -329,6 +329,7 @@ model Order {
   user          User           @relation(fields: [userId], references: [id])
   orderItems    OrderItem[]
   payments      Payment[]
+  receipt       Receipt?
 
   @@index([userId])
   @@index([addressId])
@@ -368,6 +369,23 @@ model Payment {
   order         Order         @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
+}
+
+model Receipt {
+  id            String    @id @default(uuid())
+  orderId       String    @unique
+  receiptNumber String    @unique
+  pdfUrl        String
+  publicId      String?
+  qrCodeUrl     String?
+  generatedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  order         Order     @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([receiptNumber])
 }
 
 model AuditLog {

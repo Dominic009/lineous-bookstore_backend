@@ -16,6 +16,7 @@ import { CategoryModule } from './category/category.module';
 import { CartModule } from './cart/cart.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { OrderModule } from './order/order.module';
+import { ReceiptModule } from './receipt/receipt.module';
 import { BannerModule } from './banner/banner.module';
 import { SettingModule } from './setting/setting.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
@@ -39,6 +40,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     CartModule,
     WishlistModule,
     OrderModule,
+    ReceiptModule,
     BannerModule,
     SettingModule,
     AuditLogModule,

@@ -23,10 +23,16 @@ export class CloudinaryService {
     folder = 'bookstore',
   ): Promise<{ url: string; publicId: string }> {
     return new Promise((resolve, reject) => {
+      // Determine resource type based on mimetype
+      let resourceType: 'auto' | 'image' | 'raw' | 'video' = 'auto';
+      if (file.mimetype === 'application/pdf') {
+        resourceType = 'raw';
+      }
+
       const upload = cloudinary.uploader.upload_stream(
         {
           folder,
-          resource_type: 'auto',
+          resource_type: resourceType,
         },
         (error, result) => {
           if (error) {
