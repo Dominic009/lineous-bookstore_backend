@@ -4,10 +4,6 @@
 
 This document provides a complete implementation guide for the Order API from the admin panel perspective. Admins can view all orders, update order statuses, and generate/download receipts.
 
-## Base URL
-
-```
-http://localhost:3000
 ```
 
 ## Authentication

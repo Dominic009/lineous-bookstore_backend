@@ -4,11 +4,6 @@
 
 This document provides a complete implementation guide for the Order API from the customer frontend perspective. Customers can view their own orders, download receipts, and verify receipts.
 
-## Base URL
-
-```
-http://localhost:3000
-```
 
 ## Authentication
 

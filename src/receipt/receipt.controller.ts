@@ -10,6 +10,7 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  Header,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ReceiptService } from './receipt.service';
@@ -53,6 +54,7 @@ export class ReceiptController {
    * Access: Authenticated users (own order) or Admins
    */
   @Get(':id/receipt')
+  @Header('Content-Type', 'application/pdf')
   async downloadReceipt(
     @Param('id') id: string,
     @Request() req: RequestWithUser,
@@ -64,8 +66,27 @@ export class ReceiptController {
       req.user.role,
     );
 
-    // Redirect to Cloudinary URL
-    return res.redirect(receipt.pdfUrl);
+    // Set filename for download
+    const filename = `receipt-${receipt.receiptNumber}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Proxy the PDF from Cloudinary with proper headers
+    try {
+      const response = await fetch(receipt.pdfUrl);
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      res.setHeader('Content-Length', buffer.length);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`,
+      );
+
+      return res.send(buffer);
+    } catch (error) {
+      console.error('Failed to fetch PDF from Cloudinary:', error);
+      return res.redirect(receipt.pdfUrl);
+    }
   }
 
   /**
