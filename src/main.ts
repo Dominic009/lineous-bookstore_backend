@@ -23,21 +23,12 @@ async function bootstrap() {
     console.log(
       `[DEBUG] ${req.method} ${req.url} Content-Type: ${contentType} Content-Length: ${contentLength}`,
     );
-    if (contentType.includes('multipart/form-data')) {
-      console.log(`[DEBUG] Skipping body parse for multipart request`);
-      // Don't parse multipart bodies - let multer handle it
-      return next();
-    }
     // Parse JSON and URL-encoded bodies
     bodyParser.json({ limit: '10mb' })(req, res, (err) => {
       if (err) {
         console.log(`[DEBUG] JSON parse error:`, err.message);
         return next(err);
       }
-      console.log(
-        `[DEBUG] Parsed JSON body keys:`,
-        Object.keys(req.body || {}),
-      );
       bodyParser.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
     });
   });
