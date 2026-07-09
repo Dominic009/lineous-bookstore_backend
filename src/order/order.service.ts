@@ -28,6 +28,42 @@ export class OrderService {
   ) {}
 
   /**
+   * Generate order number in format ORD-DDMMYY-XXX
+   * where XXX is a daily sequence starting from 001
+   */
+  private async generateOrderNumber(): Promise<string> {
+    const now = new Date();
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const year = String(now.getUTCFullYear()).slice(-2);
+    const datePrefix = `${day}${month}${year}`;
+
+    // Find the last order for today to get the next sequence
+    const lastOrder = await this.prisma.order.findFirst({
+      where: {
+        orderNumber: {
+          startsWith: `ORD-${datePrefix}-`,
+        },
+      },
+      orderBy: {
+        orderNumber: 'desc',
+      },
+      select: {
+        orderNumber: true,
+      },
+    });
+
+    let sequence = 1;
+    if (lastOrder) {
+      const parts = lastOrder.orderNumber.split('-');
+      const lastSequence = parseInt(parts[parts.length - 1], 10);
+      sequence = lastSequence + 1;
+    }
+
+    return `ORD-${datePrefix}-${String(sequence).padStart(3, '0')}`;
+  }
+
+  /**
    * Create a new order from cart
    * Security: Authenticated users
    */
@@ -120,7 +156,7 @@ export class OrderService {
     const total = subtotal - discount + shipping;
 
     // Generate order number
-    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const orderNumber = await this.generateOrderNumber();
 
     // Create order with items
     const order = await this.prisma.order.create({
@@ -352,7 +388,7 @@ export class OrderService {
     const total = subtotal - discount + shipping;
 
     // Generate order number
-    const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const orderNumber = await this.generateOrderNumber();
 
     // Create order with items
     const order = await this.prisma.order.create({

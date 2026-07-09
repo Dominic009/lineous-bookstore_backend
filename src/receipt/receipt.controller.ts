@@ -67,7 +67,7 @@ export class ReceiptController {
     );
 
     // Set filename for download
-    const filename = `receipt-${receipt.receiptNumber}.pdf`;
+    const filename = `CLC-ORD-${receipt.order.orderNumber}.pdf`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     // Proxy the PDF from Cloudinary with proper headers
