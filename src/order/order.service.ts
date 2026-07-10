@@ -449,6 +449,7 @@ export class OrderService {
       orderBy: { createdAt: 'desc' },
       include: {
         orderItems: true,
+        user: true,
       },
     });
 
@@ -499,6 +500,30 @@ export class OrderService {
   }
 
   /**
+   * Valid order status transitions for fulfillment lifecycle
+   */
+  private static readonly VALID_TRANSITIONS: Record<
+    OrderStatus,
+    OrderStatus[]
+  > = {
+    [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+    [OrderStatus.CONFIRMED]: [
+      OrderStatus.PROCESSING,
+      OrderStatus.CANCELLED,
+      OrderStatus.RETURNED,
+    ],
+    [OrderStatus.PROCESSING]: [
+      OrderStatus.SHIPPED,
+      OrderStatus.CANCELLED,
+      OrderStatus.RETURNED,
+    ],
+    [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.RETURNED],
+    [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
+    [OrderStatus.CANCELLED]: [],
+    [OrderStatus.RETURNED]: [],
+  };
+
+  /**
    * Update order status
    * Security: Admins only
    */
@@ -523,6 +548,13 @@ export class OrderService {
 
     if (!order) {
       throw new NotFoundException('Order not found');
+    }
+
+    const allowedTransitions = OrderService.VALID_TRANSITIONS[order.status];
+    if (!allowedTransitions.includes(status)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${order.status} to ${status}`,
+      );
     }
 
     const updatedOrder = await this.prisma.order.update({

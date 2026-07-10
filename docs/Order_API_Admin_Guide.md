@@ -8,10 +8,10 @@ This document provides a complete implementation guide for the Order API from th
 
 ## Authentication
 
-All endpoints require a valid JWT token with `ADMIN` role.
+Most endpoints require a valid JWT token. Some endpoints are restricted to users with the `ADMIN` role, while others are accessible to any authenticated user.
 
 ```
-Authorization: Bearer <admin-jwt-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ---
@@ -24,7 +24,7 @@ Retrieve all orders in the system.
 
 **Endpoint:** `GET /orders`
 
-**Access:** Admin only
+**Access:** Authenticated users (own orders) or Admins
 
 **Response:**
 ```json
@@ -34,7 +34,7 @@ Retrieve all orders in the system.
   "data": [
     {
       "id": "uuid",
-      "orderNumber": "ORD-1234567890-123",
+      "orderNumber": "ORD-090726-001",
       "subtotal": "500.00",
       "discount": "50.00",
       "shipping": "40.00",
@@ -47,6 +47,13 @@ Retrieve all orders in the system.
       "updatedAt": "2026-07-06T10:00:00.000Z",
       "userId": "uuid",
       "addressId": "uuid",
+      "user": {
+        "id": "uuid",
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com",
+        "phone": "+8801712345678"
+      },
       "orderItems": [
         {
           "id": "uuid",
@@ -59,21 +66,7 @@ Retrieve all orders in the system.
           "quantity": 2,
           "subtotal": "500.00"
         }
-      ],
-      "address": {
-        "id": "uuid",
-        "name": "John Doe",
-        "phone": "+8801712345678",
-        "district": "Dhaka",
-        "addressLine": "123 Main Street"
-      },
-      "user": {
-        "id": "uuid",
-        "firstName": "John",
-        "lastName": "Doe",
-        "email": "john@example.com",
-        "phone": "+8801712345678"
-      }
+      ]
     }
   ]
 }
@@ -87,7 +80,7 @@ Retrieve a specific order by ID.
 
 **Endpoint:** `GET /orders/:id`
 
-**Access:** Admin only
+**Access:** Authenticated users (own order) or Admins
 
 **Response:**
 ```json
@@ -96,7 +89,7 @@ Retrieve a specific order by ID.
   "status": "success",
   "data": {
     "id": "uuid",
-    "orderNumber": "ORD-1234567890-123",
+    "orderNumber": "ORD-090726-001",
     "subtotal": "500.00",
     "discount": "50.00",
     "shipping": "40.00",
@@ -109,10 +102,38 @@ Retrieve a specific order by ID.
     "updatedAt": "2026-07-06T10:00:00.000Z",
     "userId": "uuid",
     "addressId": "uuid",
-    "orderItems": [...],
-    "address": {...},
-    "user": {...},
-    "payments": [...]
+    "orderItems": [
+      {
+        "id": "uuid",
+        "orderId": "uuid",
+        "bookId": "uuid",
+        "paperId": "uuid",
+        "bookTitle": "Atomic Habits",
+        "paperName": "Hardcover",
+        "paperPrice": "250.00",
+        "quantity": 2,
+        "subtotal": "500.00",
+        "paper": {
+          "id": "uuid",
+          "name": "Hardcover",
+          "price": "250.00"
+        }
+      }
+    ],
+    "payments": [
+      {
+        "id": "uuid",
+        "orderId": "uuid",
+        "gateway": "COD",
+        "transactionId": null,
+        "amount": "490.00",
+        "currency": "BDT",
+        "status": "PENDING",
+        "paidAt": null,
+        "createdAt": "2026-07-06T10:00:00.000Z",
+        "updatedAt": "2026-07-06T10:00:00.000Z"
+      }
+    ]
   }
 }
 ```
@@ -121,7 +142,7 @@ Retrieve a specific order by ID.
 
 ### 3. Update Order Status
 
-Update the status of an order.
+Update the status of an order. Only valid transitions from the current status are allowed.
 
 **Endpoint:** `PATCH /orders/:id/status`
 
@@ -143,6 +164,15 @@ Update the status of an order.
 - `CANCELLED` - Order has been cancelled
 - `RETURNED` - Order has been returned
 
+**Valid Transitions:**
+- `PENDING` → `CONFIRMED`, `CANCELLED`
+- `CONFIRMED` → `PROCESSING`, `CANCELLED`, `RETURNED`
+- `PROCESSING` → `SHIPPED`, `CANCELLED`, `RETURNED`
+- `SHIPPED` → `DELIVERED`, `RETURNED`
+- `DELIVERED` → `RETURNED`
+- `CANCELLED` → (terminal, no transitions)
+- `RETURNED` → (terminal, no transitions)
+
 **Response:**
 ```json
 {
@@ -150,8 +180,20 @@ Update the status of an order.
   "status": "success",
   "data": {
     "id": "uuid",
+    "orderNumber": "ORD-090726-001",
+    "subtotal": "500.00",
+    "discount": "50.00",
+    "shipping": "40.00",
+    "total": "490.00",
     "status": "CONFIRMED",
-    "updatedAt": "2026-07-06T10:30:00.000Z"
+    "paymentStatus": "PENDING",
+    "paymentMethod": "COD",
+    "notes": null,
+    "createdAt": "2026-07-06T10:00:00.000Z",
+    "updatedAt": "2026-07-06T10:30:00.000Z",
+    "userId": "uuid",
+    "addressId": "uuid",
+    "orderItems": [...]
   }
 }
 ```
@@ -172,8 +214,8 @@ Generate a PDF receipt for an order. This creates a new receipt or regenerates a
   "message": "Receipt generated successfully",
   "status": "success",
   "data": {
-    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260706-ABC123.pdf",
-    "receiptNumber": "RC-20260706-ABC123"
+    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260709-A1B2C3.pdf",
+    "receiptNumber": "RC-20260709-A1B2C3"
   }
 }
 ```
@@ -182,13 +224,13 @@ Generate a PDF receipt for an order. This creates a new receipt or regenerates a
 
 ### 5. Download Receipt
 
-Download the PDF receipt for an order. Redirects to the Cloudinary URL.
+Download the PDF receipt for an order. Proxies the PDF from Cloudinary and returns it as a file download. Falls back to a redirect if the Cloudinary fetch fails.
 
 **Endpoint:** `GET /orders/:id/receipt`
 
-**Access:** Admin only
+**Access:** Authenticated users (own order) or Admins
 
-**Response:** Redirects to PDF URL (302 Redirect)
+**Response:** PDF file download with `Content-Disposition: attachment` header
 
 ---
 
@@ -198,7 +240,7 @@ Get detailed receipt information including the PDF URL.
 
 **Endpoint:** `GET /orders/:id/receipt/details`
 
-**Access:** Admin only
+**Access:** Authenticated users (own order) or Admins
 
 **Response:**
 ```json
@@ -208,16 +250,16 @@ Get detailed receipt information including the PDF URL.
   "data": {
     "id": "uuid",
     "orderId": "uuid",
-    "receiptNumber": "RC-20260706-ABC123",
-    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260706-ABC123.pdf",
-    "publicId": "receipts/RC-20260706-ABC123",
+    "receiptNumber": "RC-20260709-A1B2C3",
+    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260709-A1B2C3.pdf",
+    "publicId": "receipts/RC-20260709-A1B2C3",
     "qrCodeUrl": "data:image/png;base64,...",
     "generatedAt": "2026-07-06T10:30:00.000Z",
     "createdAt": "2026-07-06T10:30:00.000Z",
     "updatedAt": "2026-07-06T10:30:00.000Z",
     "order": {
       "id": "uuid",
-      "orderNumber": "ORD-1234567890-123",
+      "orderNumber": "ORD-090726-001",
       "subtotal": "500.00",
       "discount": "50.00",
       "shipping": "40.00",
@@ -225,9 +267,37 @@ Get detailed receipt information including the PDF URL.
       "status": "CONFIRMED",
       "paymentStatus": "COMPLETED",
       "paymentMethod": "COD",
-      "orderItems": [...],
-      "address": {...},
-      "user": {...}
+      "orderItems": [
+        {
+          "id": "uuid",
+          "bookId": "uuid",
+          "paperId": "uuid",
+          "bookTitle": "Atomic Habits",
+          "paperName": "Hardcover",
+          "paperPrice": "250.00",
+          "quantity": 2,
+          "subtotal": "500.00",
+          "paper": {
+            "id": "uuid",
+            "name": "Hardcover",
+            "price": "250.00"
+          }
+        }
+      ],
+      "address": {
+        "id": "uuid",
+        "name": "John Doe",
+        "phone": "+8801712345678",
+        "district": "Dhaka",
+        "addressLine": "123 Main Street"
+      },
+      "user": {
+        "id": "uuid",
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com",
+        "phone": "+8801712345678"
+      }
     }
   }
 }
@@ -251,15 +321,31 @@ Verify a receipt by its receipt number. This endpoint is public and does not req
   "data": {
     "id": "uuid",
     "orderId": "uuid",
-    "receiptNumber": "RC-20260706-ABC123",
-    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260706-ABC123.pdf",
+    "receiptNumber": "RC-20260709-A1B2C3",
+    "pdfUrl": "https://res.cloudinary.com/.../receipts/RC-20260709-A1B2C3.pdf",
     "qrCodeUrl": "data:image/png;base64,...",
     "generatedAt": "2026-07-06T10:30:00.000Z",
     "order": {
-      "orderNumber": "ORD-1234567890-123",
+      "orderNumber": "ORD-090726-001",
       "total": "490.00",
       "status": "CONFIRMED",
-      "orderItems": [...]
+      "orderItems": [
+        {
+          "id": "uuid",
+          "bookId": "uuid",
+          "paperId": "uuid",
+          "bookTitle": "Atomic Habits",
+          "paperName": "Hardcover",
+          "paperPrice": "250.00",
+          "quantity": 2,
+          "subtotal": "500.00",
+          "paper": {
+            "id": "uuid",
+            "name": "Hardcover",
+            "price": "250.00"
+          }
+        }
+      ]
     }
   }
 }
@@ -306,7 +392,7 @@ CANCELLED   RETURNED
 ### 400 Bad Request
 ```json
 {
-  "message": "Invalid status value",
+  "message": "Invalid status transition from PENDING to DELIVERED",
   "status": "error",
   "error": "Bad Request"
 }
