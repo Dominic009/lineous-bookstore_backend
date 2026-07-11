@@ -22,6 +22,7 @@ import { SettingModule } from './setting/setting.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     AuditLogModule,
     FileUploadModule,
     CloudinaryModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
