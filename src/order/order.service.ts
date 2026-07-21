@@ -11,6 +11,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateTestOrderDto } from './dto/create-test-order.dto';
+import { UpdateShippingDto } from './dto/update-shipping.dto';
 import {
   Order,
   Role,
@@ -564,6 +565,43 @@ export class OrderService {
 
     return {
       message: 'Order status updated successfully',
+      status: 'success',
+      data: updatedOrder,
+    };
+  }
+
+  /**
+   * Update order shipping charge and recalculate total
+   * Security: Admins only
+   */
+  async updateShipping(
+    id: string,
+    dto: UpdateShippingDto,
+  ): Promise<{
+    message: string;
+    status: string;
+    data: Order;
+  }> {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const subtotal = Number(order.subtotal);
+    const discount = Number(order.discount) || 0;
+    const shipping = dto.shipping;
+    const total = subtotal - discount + shipping;
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id },
+      data: { shipping, total },
+    });
+
+    return {
+      message: 'Order shipping updated successfully',
       status: 'success',
       data: updatedOrder,
     };

@@ -10,7 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ReceiptBuilder } from './builder/receipt.builder';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { Order, OrderItem, User, Address } from '@prisma/client';
+import { Order, OrderItem, User, Address, OrderStatus } from '@prisma/client';
 import { generatePdfFromTemplate, getTemplatePath } from '../utils/pdf';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
@@ -27,6 +27,16 @@ export class ReceiptService {
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
   ) {}
+
+  /**
+   * Auto-confirm order when receipt is generated
+   */
+  async confirmOrder(orderId: string): Promise<void> {
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.CONFIRMED },
+    });
+  }
 
   /**
    * Generate a receipt for an order

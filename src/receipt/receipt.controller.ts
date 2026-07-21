@@ -42,8 +42,31 @@ export class ReceiptController {
   async generateReceipt(@Param('id') id: string) {
     const result = await this.receiptService.generate(id);
 
+    // Auto-confirm order when receipt is generated
+    await this.receiptService.confirmOrder(id);
+
     return {
       message: 'Receipt generated successfully',
+      status: 'success',
+      data: result,
+    };
+  }
+
+  /**
+   * Regenerate receipt for an order (deletes old and creates new)
+   * Access: Admins only
+   */
+  @Post(':id/receipt/regenerate')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  async regenerateReceipt(@Param('id') id: string) {
+    const result = await this.receiptService.regenerate(id);
+
+    // Auto-confirm order when receipt is regenerated
+    await this.receiptService.confirmOrder(id);
+
+    return {
+      message: 'Receipt regenerated successfully',
       status: 'success',
       data: result,
     };
