@@ -4,7 +4,7 @@
     <meta name='viewport' content='width=device-width, initial-scale=1.0' />
     <title>Receipt - {{receiptNumber}}</title>
     <link
-      href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap'
+      href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Noto+Sans:wght@400;500;600;700&display=swap'
       rel='stylesheet'
     />
     <style>
@@ -30,7 +30,7 @@
       }
 
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Noto Sans', sans-serif;
         background-color: var(--bg);
         padding: 40px;
         color: var(--ink);
@@ -208,6 +208,7 @@
            padding: 15px 14px;
            border-bottom: 1px solid var(--line);
            font-size: 14px;
+           font-family: 'Inter', 'Noto Sans', sans-serif;
          }
 
          .items-table td:last-child { text-align: right; }
@@ -241,6 +242,7 @@
            padding: 7px 0;
            font-size: 14px;
            color: var(--muted);
+           font-family: 'Inter', 'Noto Sans', sans-serif;
          }
 
          .totals-table td:last-child {

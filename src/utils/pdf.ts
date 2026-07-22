@@ -50,8 +50,13 @@ export async function generatePdfFromTemplate(
       timeout: 60000,
     });
 
-    // Small delay to ensure fonts and styles are applied
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Wait for all fonts to load (including Google Fonts like Noto Sans for Bengali symbols)
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+
+    // Additional small delay to ensure styles are fully applied
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Generate PDF
     const pdfBuffer = await page.pdf({
