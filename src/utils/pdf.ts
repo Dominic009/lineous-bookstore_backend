@@ -86,5 +86,7 @@ export async function generatePdfFromTemplate(
 }
 
 export function getTemplatePath(templateName: string): string {
-  return path.join(process.cwd(), 'src', 'templates', templateName);
+  // Use __dirname so the path resolves correctly regardless of the working directory
+  // Compiled location: dist/utils/pdf.js → __dirname = dist/utils/
+  return path.join(__dirname, '..', '..', 'src', 'templates', templateName);
 }
