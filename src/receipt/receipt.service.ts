@@ -100,8 +100,11 @@ export class ReceiptService {
         receiptData as any,
       );
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      throw new BadRequestException('Failed to generate receipt PDF');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Failed to generate PDF:', message);
+      throw new BadRequestException(
+        `Failed to generate receipt PDF: ${message}`,
+      );
     }
 
     // Upload to Cloudinary
