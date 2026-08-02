@@ -199,7 +199,7 @@ export class SubjectService {
   }
 
   /**
-   * Delete a subject (soft delete)
+   * Delete a subject (soft delete with cascade)
    * Security: Admins only
    */
   async remove(
@@ -222,7 +222,13 @@ export class SubjectService {
       throw new NotFoundException('Subject not found');
     }
 
-    // Soft delete
+    // Cascade soft delete: books belonging to this subject
+    await this.prisma.book.updateMany({
+      where: { subjectId: id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+
+    // Soft delete the subject
     await this.prisma.subject.update({
       where: { id },
       data: { deletedAt: new Date() },
